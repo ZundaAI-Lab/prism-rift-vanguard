@@ -116,11 +116,14 @@ export function installUiLocalization(UIRoot) {
     if (intervalScreen) {
       const eyebrow = intervalScreen.querySelector('.eyebrow');
       if (eyebrow) eyebrow.textContent = this.t('interval.eyebrow');
-      const infoCards = intervalScreen.querySelectorAll('#summaryGrid .info-card .mini-label');
-      if (infoCards[0]) infoCards[0].textContent = this.t('interval.labels.currentCrystals');
-      if (infoCards[1]) infoCards[1].textContent = this.t('interval.labels.primaryStatus');
-      if (infoCards[2]) infoCards[2].textContent = this.t('interval.labels.plasmaStatus');
-      if (infoCards[3]) infoCards[3].textContent = this.t('interval.labels.nextMission');
+      const intervalCrystalLabel = this.refs.intervalCrystal?.closest('.info-card')?.querySelector('.mini-label');
+      const intervalPrimaryLabel = this.refs.intervalPrimary?.closest('.info-card')?.querySelector('.mini-label');
+      const intervalPlasmaLabel = this.refs.intervalPlasma?.closest('.info-card')?.querySelector('.mini-label');
+      const intervalNextMissionLabel = this.refs.intervalNextMission?.closest('.info-card')?.querySelector('.mini-label');
+      if (intervalCrystalLabel) intervalCrystalLabel.textContent = this.t('interval.labels.currentCrystals');
+      if (intervalPrimaryLabel) intervalPrimaryLabel.textContent = this.t('interval.labels.primaryStatus');
+      if (intervalPlasmaLabel) intervalPlasmaLabel.textContent = this.t('interval.labels.plasmaStatus');
+      if (intervalNextMissionLabel) intervalNextMissionLabel.textContent = this.t('interval.labels.nextMission');
       const shopTitle = intervalScreen.querySelector('.shop-title-row h3');
       const shopTip = intervalScreen.querySelector('.shop-title-row .shop-tip');
       if (shopTitle) shopTitle.textContent = this.t('interval.labels.hangarShop');

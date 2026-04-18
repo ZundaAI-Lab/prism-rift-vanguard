@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRISM RIFT VANGUARD</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app-shell">
+    <div id="hud">
+      <div id="topBar">
+        <div class="panel stat-panel">
+          <div class="label">MISSION</div>
+          <div class="value" id="missionText">-</div>
+          <div class="sub" id="waveText">WAVE - / -</div>
+        </div>
+        <div class="panel stat-panel center-panel">
+          <div class="label">SCORE</div>
+          <div class="value accent" id="scoreText">0</div>
+          <div class="sub">CRYSTALS <span id="crystalText">0</span></div>
+        </div>
+        <div class="panel stat-panel right-panel">
+          <div class="label">HULL</div>
+          <div class="value" id="healthText">100 / 100</div>
+          <div class="bar"><div id="healthBar"></div></div>
+          <div class="sub" id="weaponText">　</div>
+        </div>
+      </div>
+
+      <div id="bossBarWrap" class="hidden">
+        <div class="boss-header">
+          <span id="bossLabel">BOSS</span>
+          <span id="bossHpText">0%</span>
+        </div>
+        <div class="boss-bar"><div id="bossBar"></div></div>
+      </div>
+
+      <div id="centerNotice"></div>
+      <div id="damageFlash"></div>
+
+      <div id="reticle">
+        <div class="ring"></div>
+        <div class="cross v"></div>
+        <div class="cross h"></div>
+      </div>
+    </div>
+
+    <section class="screen visible" id="startScreen">
+      <div class="screen-card wide title-card">
+        <div class="title-orbit title-orbit-a" aria-hidden="true"></div>
+        <div class="title-orbit title-orbit-b" aria-hidden="true"></div>
+        <div class="title-layout">
+          <div class="title-copy">
+            <div class="eyebrow">THREE.JS / CAMPAIGN SHOOTER</div>
+            <h1>PRISM RIFT VANGUARD</h1>
+            <p class="lead">前線は、いつも眩しい。</p>
+            <div class="title-signature" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <aside class="title-menu-panel">
+            <div class="title-menu-head">
+              <div class="mini-label">START MENU</div>
+              <strong>SELECT OPERATION</strong>
+            </div>
+            <div class="screen-actions title-actions">
+              <button id="startBtn">CAMPAIGN START</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen screen-scrollable" id="intervalScreen">
+      <div class="screen-card huge screen-card-shell interval-screen-card">
+        <div class="eyebrow">MISSION INTERVAL</div>
+        <h2 id="intervalTitle">MISSION CLEAR</h2>
+        <div class="screen-scrollbox interval-scrollbox">
+          <p class="lead" id="intervalSummary">次の戦場へ向けて機体を再構成します。</p>
+          <div id="intervalLayout">
+            <div id="summaryGrid">
+              <div class="info-card">
+                <div class="mini-label">CURRENT CRYSTALS</div>
+                <strong id="intervalCrystal">0</strong>
+              </div>
+              <div class="info-card">
+                <div class="mini-label">PRIMARY STATUS</div>
+                <strong id="intervalPrimary">-</strong>
+              </div>
+              <div class="info-card">
+                <div class="mini-label">PLASMA STATUS</div>
+                <strong id="intervalPlasma">-</strong>
+              </div>
+              <div class="info-card">
+                <div class="mini-label">NEXT MISSION</div>
+                <strong id="intervalNextMission">-</strong>
+                <p class="info-card-detail interval-mission-briefing" id="intervalMissionBriefing" hidden>-</p>
+              </div>
+            </div>
+            <div>
+              <div class="shop-title-row">
+                <h3>HANGAR SHOP</h3>
+                <div class="shop-tip">クリスタル消費で機体を強化</div>
+              </div>
+              <div id="shopGrid"></div>
+            </div>
+          </div>
+        </div>
+        <div class="screen-actions">
+          <button id="nextMissionBtn">NEXT MISSION</button>
+          <button id="backToTitleBtn" class="minor screen-action-back-end">TITLE</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="gameOverScreen">
+      <div class="screen-card">
+        <div class="eyebrow danger">RUN TERMINATED</div>
+        <h2 id="gameOverTitle">GAME OVER</h2>
+        <p class="lead" id="gameOverText">機体が撃墜されました。</p>
+        <div class="screen-actions">
+          <button id="restartBtn">RESTART CAMPAIGN</button>
+          <button id="gameOverTitleBtn" class="minor screen-action-back-end">TITLE</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="clearScreen">
+      <div class="screen-card">
+        <div class="eyebrow success">ALL OPERATIONS COMPLETE</div>
+        <h2>CAMPAIGN CLEAR</h2>
+        <p class="lead" id="clearText">全ミッションを制圧しました。</p>
+        <div class="screen-actions">
+          <button id="clearRestartBtn">NEW RUN</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="./src/app/main.js"></script>
+</body>
+</html>

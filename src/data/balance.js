@@ -1,0 +1,81 @@
+/**
+ * Responsibility:
+ * - Central tuning constants shared by runtime systems.
+ *
+ * Rules:
+ * - Keep numbers only. No runtime state and no side effects.
+ * - Gameplay feel is defined by these values unless a later balance patch intentionally changes it.
+ * - Crystal auto-collection feel is controlled only by PICKUP radii here. RewardSystem must read both
+ *   `magnetRadius` and `collectRadius` directly so CRYSTAL ATTRACT visibly expands pickup reach.
+ *   `magnetRadius` is 37.8 units.
+ * - Primary fire-rate tuning is expressed as multiplicative pieces so the shop text stays honest:
+ *   `primaryBaseFireRate` is the real level-0 cadence the player starts with,
+ *   `primaryRapidMultiplier` is the per-level PRIMARY RAPID bonus,
+ *   and `primaryMultiWayRatePenalty` is the per-level MULTI-WAY fire-rate penalty.
+ *   Runtime systems must compose those values in one place instead of smuggling extra cooldown edits elsewhere.
+ */
+export const GAME_BOUNDS = {
+  radius: 170,
+  softRadius: 158,
+};
+
+export const PLAYER_TRAVEL = {
+  boundaryMargin: 18,
+  radius: GAME_BOUNDS.radius + 18,
+};
+
+export const PLAYER_BASE = {
+  maxHealth: 100,
+  moveSpeed: 22,
+  hoverHeight: 6.8,
+  collisionRadius: 2.0,
+  invulnAfterHit: 0.08,
+};
+
+
+export const WEAPON_BASE = {
+  primaryDamage: 12,
+  primaryBaseFireRate: 1 / 0.176,
+  primaryRapidMultiplier: 1.2,
+  primaryMultiWayRatePenalty: 0.85,
+  primarySpeed: 112,
+  primaryPierce: 0,
+  primaryHoming: 0.01,
+  primarySpread: 0.06,
+  primaryLife: 1.45,
+  plasmaDamage: 84,
+  plasmaSpeed: 84,
+  plasmaRadius: 8.0,
+  plasmaCooldown: 5.2,
+  plasmaLife: 2.0,
+};
+
+export const PICKUP = {
+  magnetRadius: 37.8,
+  collectRadius: 3.2,
+  floatHeight: 1.1,
+};
+
+export const CRYSTAL_DROP = {
+  fastKillSeconds: 5,
+  slowKillSeconds: 15,
+  bossTimeScale: 4,
+};
+
+export const MINIMAP = {
+  range: 105,
+  innerRingRatio: 0.66,
+  centerRingRatio: 0.36,
+};
+
+export const TARGET_LOCK = {
+  range: 105,
+};
+
+export const COLORS = {
+  player: 0x8dffef,
+  playerHot: 0xff7adc,
+  enemyShot: 0xffa23a,
+  plasma: 0x76c2ff,
+  crystal: 0xbfefff,
+};

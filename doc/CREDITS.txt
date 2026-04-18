@@ -1,0 +1,47 @@
+## クレジット
+
+### 音楽
+本作では、以下の音楽素材を使用しています。
+
+#### DOVA-SYNDROME
+- サイバールーム / sakunoken
+- 奇禍回路 / 奏でるやかん
+- Rapid_cyber / 奏でるやかん
+- ZONE_-X13- / MAKOOTO
+- サイバーバトルⅡ / MAKOOTO
+- サイバーバトルⅢ / MAKOOTO
+- Burning___Straight / MAKOOTO
+- Dragoon_Rance_!! / MAKOOTO
+
+#### PeriTune
+- PerituneMaterial_J_Healing3b
+- PerituneMaterial_J_Lose3
+- PerituneMaterial_Sparkle_loop
+- PerituneMaterial_Rapid3_loop
+- PerituneMaterial_Climbing_loop
+- PerituneMaterial_CyberPunk_City_loop
+- PerituneMaterial_Rapid5_loop
+- PerituneMaterial_Unknown_Cities_loop
+- PerituneMaterial_Irregular_loop
+- PerituneMaterial_Rapid4_loop
+
+### 効果音
+本作では、以下の効果音素材を使用しています。
+
+#### 効果音ラボ
+- 決定ボタンを押す22
+- プレゼンタイトル表示2
+- 警告音2
+- カーソル移動7
+- パワーチャージ
+- ショット
+- 必殺技ヒット
+- ビープ音3
+- 警告音1
+- death
+- 爆発1
+- 決定ボタンを押す6
+- 成功音
+
+#### PeriTune
+- PerituneMaterial_J_Win3

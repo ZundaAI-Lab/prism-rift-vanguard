@@ -20,6 +20,8 @@ export async function bootstrapApp() {
     }) ?? finalSnapshot;
   } finally {
     updateBootLoadingOverlay(loadingOverlay, { ...finalSnapshot, pending: 0, percent: 100 });
+    // 音声アセットのプリロードはベストエフォート扱い。
+    // 一部失敗しても該当トラックを unavailable にして無音継続するため、起動は止めない。
     game.start();
     requestAnimationFrame(() => hideBootLoadingOverlay(loadingOverlay));
   }

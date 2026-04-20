@@ -102,6 +102,9 @@ export const audioAssetCacheMethods = {
           await this.preloadAudioSource(src);
           success = true;
         } catch {
+          // 音声プリロードは仕様としてベストエフォート。
+          // 欠損やデコード失敗があっても、該当トラックを unavailable にして
+          // 実行時は無音化できるため、ここでは起動失敗にしない。
           success = false;
         } finally {
           this.audioPreloadState.completed += 1;
@@ -159,6 +162,8 @@ export const audioAssetCacheMethods = {
         } catch (originError) {
           entry.status = 'error';
           entry.error = originError;
+          // この音源だけを失敗扱いにし、参照トラックを unavailable へ切り替える。
+          // 以後の再生要求は無音 no-op として扱い、全体の進行は止めない。
           this.markAudioSourceUnavailable(src);
           throw originError;
         }

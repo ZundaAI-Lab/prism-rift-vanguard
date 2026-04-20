@@ -65,8 +65,17 @@ getEnemyProjectileSfxCooldownMs(trackId) {
   }
 },
 
+allocateProjectileVisualHandle(visualFamily, meta = null) {
+  const visualHandle = this.game.renderer?.batches?.projectiles?.allocate?.(visualFamily, meta) ?? null;
+  if (!visualHandle) {
+    console.warn(`[ProjectileBatchRenderer] capacity exhausted for ${visualFamily}`);
+  }
+  return visualHandle;
+},
+
 spawnPlayerProjectile(options) {
   const projectile = this.createProjectileMesh(options, true);
+  if (!projectile) return null;
   this.game.store.playerProjectiles.push(projectile);
   this.syncProjectileVisual(projectile);
   return projectile;
@@ -74,6 +83,7 @@ spawnPlayerProjectile(options) {
 
 spawnEnemyProjectile(options) {
   const projectile = this.createProjectileMesh(options, false);
+  if (!projectile) return null;
   this.game.store.enemyProjectiles.push(projectile);
   this.syncProjectileVisual(projectile);
 
@@ -126,10 +136,8 @@ createProjectileMesh(options, fromPlayer) {
     isShowBullet,
     useNormalShowBulletVisuals,
   });
-  const visualHandle = this.game.renderer?.batches?.projectiles?.allocate?.(visualFamily, { fromPlayer, plasma: !!options.plasma }) ?? null;
-  if (!visualHandle) {
-    console.warn(`[ProjectileBatchRenderer] capacity exhausted for ${visualFamily}`);
-  }
+  const visualHandle = this.allocateProjectileVisualHandle(visualFamily, { fromPlayer, plasma: !!options.plasma });
+  if (!visualHandle) return null;
 
   return {
     ...options,

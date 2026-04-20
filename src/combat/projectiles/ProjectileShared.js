@@ -116,8 +116,8 @@ export const PROJECTILE_VISUAL_CAPACITY = Object.freeze({
   [PROJECTILE_VISUAL_FAMILY.playerPrimary]: 96,
   [PROJECTILE_VISUAL_FAMILY.playerPlasma]: 32,
   [PROJECTILE_VISUAL_FAMILY.enemyBullet]: 768,
-  [PROJECTILE_VISUAL_FAMILY.enemyShowBullet]: 256,
-  [PROJECTILE_VISUAL_FAMILY.enemyMine]: 128,
+  [PROJECTILE_VISUAL_FAMILY.enemyShowBullet]: 384,
+  [PROJECTILE_VISUAL_FAMILY.enemyMine]: 256,
 });
 
 /**

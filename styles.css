@@ -34,6 +34,77 @@ html, body {
 body canvas {
   display: block;
 }
+
+#bootLoadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(64, 135, 255, 0.18) 0%, rgba(8, 14, 28, 0.16) 28%, rgba(3, 5, 10, 0.92) 100%);
+  backdrop-filter: blur(12px);
+  transition: opacity 0.28s ease;
+}
+#bootLoadingOverlay.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.boot-loading-card {
+  width: min(460px, calc(100vw - 32px));
+  padding: 24px 24px 22px;
+  border: 1px solid rgba(116, 255, 240, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(8, 15, 30, 0.92), rgba(5, 9, 18, 0.88));
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.38), 0 0 44px rgba(116, 255, 240, 0.08);
+}
+.boot-loading-eyebrow {
+  color: var(--hud-heading);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.boot-loading-title {
+  margin: 10px 0 10px;
+  color: var(--hud-text);
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.02;
+  letter-spacing: 0.04em;
+}
+.boot-loading-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.boot-loading-progress {
+  position: relative;
+  height: 12px;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 255, 240, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.boot-loading-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(116, 255, 240, 0.82), rgba(143, 200, 255, 0.96));
+  box-shadow: 0 0 20px rgba(116, 255, 240, 0.28);
+  transition: width 0.16s ease;
+}
+.boot-loading-meta {
+  margin-top: 12px;
+  color: var(--hud-text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: right;
+}
+
 #app-shell {
   position: fixed;
   inset: 0;

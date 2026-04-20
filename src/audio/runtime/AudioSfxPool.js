@@ -43,7 +43,7 @@ ensureSfxPool(trackId, policy) {
 },
 
 createSfxVoice(trackId, policy, pool) {
-  const audio = new Audio(policy.src);
+  const audio = this.createAudioElementForSource(policy.src);
   audio.preload = 'auto';
   audio.loop = false;
   audio.volume = 0;

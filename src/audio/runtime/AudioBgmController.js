@@ -169,7 +169,7 @@ playBgm(trackId, { restart = false, loop = null } = {}) {
 
   this.stopBgm();
 
-  const audio = new Audio(track.src);
+  const audio = this.createAudioElementForSource(track.src);
   audio.preload = 'auto';
   audio.loop = typeof loop === 'boolean' ? loop : track.loop !== false;
   this.bgmFadeVolumeScale = 1;

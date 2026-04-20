@@ -4,6 +4,7 @@ import { audioMixPolicyMethods } from './runtime/AudioMixPolicy.js';
 import { audioSpatialMethods } from './runtime/AudioSpatial.js';
 import { audioBgmControllerMethods } from './runtime/AudioBgmController.js';
 import { audioSfxPoolMethods } from './runtime/AudioSfxPool.js';
+import { audioAssetCacheMethods } from './runtime/AudioAssetCache.js';
 
 /**
  * Responsibility:
@@ -50,6 +51,10 @@ export class AudioManager {
     this.playerSfxSuppressed = false;
     this.audioContext = null;
     this.audioContextUnavailable = false;
+    this.audioSourceTrackIndex = this.buildAudioSourceTrackIndex();
+    this.audioAssetCache = new Map();
+    this.audioPreloadState = { total: 0, completed: 0, succeeded: 0, failed: 0 };
+    this.audioPreloadPromise = null;
 
     this.bindUserGestureUnlock();
   }
@@ -69,6 +74,7 @@ export class AudioManager {
     this.sfxBurstState.clear?.();
     this.sfxLastPlayAt.clear?.();
     this.pendingBgmRequest = null;
+    this.releaseAudioAssetCache?.();
 
     try {
       this.audioContext?.close?.();
@@ -85,4 +91,5 @@ Object.assign(
   audioSpatialMethods,
   audioBgmControllerMethods,
   audioSfxPoolMethods,
+  audioAssetCacheMethods,
 );

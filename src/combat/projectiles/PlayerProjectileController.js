@@ -264,7 +264,6 @@ updatePlayerProjectiles(dt) {
     if (!(projectile.plasma || projectile.splashRadius)) {
       const groundY = this.game.world.getHeight(projectile.mesh.position.x, projectile.mesh.position.z);
       if (projectile.mesh.position.y < groundY + 0.35) {
-        if (projectile.plasma || projectile.splashRadius) this.triggerSplash(projectile);
         this.removeProjectile(projectile, this.game.store.playerProjectiles, i);
         continue;
       }

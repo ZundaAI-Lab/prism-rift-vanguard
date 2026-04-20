@@ -31,6 +31,7 @@ function patchSharedInstancedAttributes(material) {
  * - Core keeps standard lighting so bullets retain their solid body instead of turning into flat billboards.
  * - Halo and ring stay additive layers; do not merge them into the core material or the original projectile silhouette will drift.
  * - Per-instance tint goes through InstancedMesh.instanceColor. Do not enable material.vertexColors here; these geometries do not carry per-vertex color attributes and forcing USE_COLOR will black out every projectile layer.
+ * - Core emissive is derived from the same instance tint plus glow; there is no separate per-projectile emissive color path to keep in sync.
  * - This module only patches the extra opacity/glow attributes.
  */
 export function buildInstancedProjectileCoreMaterial(baseParams = {}) {

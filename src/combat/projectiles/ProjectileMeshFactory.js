@@ -9,7 +9,7 @@ function resolveProjectileVisualFamily({ fromPlayer, plasma, isShowBullet, useNo
   return PROJECTILE_VISUAL_FAMILY.enemyBullet;
 }
 
-function buildProjectileVisualDefaults(options, fromPlayer, { displayColor, emissiveColor, ringColor, isMindriftMine, isShowBullet, useNormalShowBulletVisuals }) {
+function buildProjectileVisualDefaults(options, fromPlayer, { displayColor, ringColor, isMindriftMine, isShowBullet, useNormalShowBulletVisuals }) {
   const coreScale = isMindriftMine ? options.radius * 0.78 : (options.plasma ? options.radius : (fromPlayer ? options.radius : options.radius * 1.14));
   const haloScale = (isMindriftMine ? 2.4 : (fromPlayer ? 1.55 : 2.0)) * options.radius;
   const ringScale = fromPlayer ? 0 : options.radius * (isMindriftMine ? 2.2 : 1.75);
@@ -28,7 +28,6 @@ function buildProjectileVisualDefaults(options, fromPlayer, { displayColor, emis
     ringAlpha: isMindriftMine ? 0.18 : (fromPlayer ? 0 : ((isShowBullet && !useNormalShowBulletVisuals) ? 0.28 : 0.72)),
     ringGlow: 1,
     ringEuler,
-    emissiveColor: new THREE.Color(emissiveColor),
   };
 }
 
@@ -65,17 +64,8 @@ getEnemyProjectileSfxCooldownMs(trackId) {
   }
 },
 
-allocateProjectileVisualHandle(visualFamily, meta = null) {
-  const visualHandle = this.game.renderer?.batches?.projectiles?.allocate?.(visualFamily, meta) ?? null;
-  if (!visualHandle) {
-    console.warn(`[ProjectileBatchRenderer] capacity exhausted for ${visualFamily}`);
-  }
-  return visualHandle;
-},
-
 spawnPlayerProjectile(options) {
   const projectile = this.createProjectileMesh(options, true);
-  if (!projectile) return null;
   this.game.store.playerProjectiles.push(projectile);
   this.syncProjectileVisual(projectile);
   return projectile;
@@ -83,7 +73,6 @@ spawnPlayerProjectile(options) {
 
 spawnEnemyProjectile(options) {
   const projectile = this.createProjectileMesh(options, false);
-  if (!projectile) return null;
   this.game.store.enemyProjectiles.push(projectile);
   this.syncProjectileVisual(projectile);
 
@@ -106,11 +95,6 @@ createProjectileMesh(options, fromPlayer) {
     : (isMindriftMine
       ? (options.color ?? 0x8ff8ff)
       : ((isShowBullet && !useNormalShowBulletVisuals) ? 0x8fd8ff : enemyWarmColor));
-  const emissiveColor = fromPlayer
-    ? (options.emissive ?? options.color)
-    : (isMindriftMine
-      ? (options.emissive ?? displayColor)
-      : ((isShowBullet && !useNormalShowBulletVisuals) ? 0xd8f3ff : (options.splashRadius ? 0xffef9a : 0xffa23a)));
   const ringColor = isMindriftMine
     ? 0xffffff
     : ((isShowBullet && !useNormalShowBulletVisuals) ? 0xdff4ff : (options.splashRadius ? 0xfff0be : 0xffd074));
@@ -130,14 +114,15 @@ createProjectileMesh(options, fromPlayer) {
   });
   const visualState = buildProjectileVisualDefaults(options, fromPlayer, {
     displayColor,
-    emissiveColor,
     ringColor,
     isMindriftMine,
     isShowBullet,
     useNormalShowBulletVisuals,
   });
-  const visualHandle = this.allocateProjectileVisualHandle(visualFamily, { fromPlayer, plasma: !!options.plasma });
-  if (!visualHandle) return null;
+  const visualHandle = this.game.renderer?.batches?.projectiles?.allocate?.(visualFamily, { fromPlayer, plasma: !!options.plasma }) ?? null;
+  if (!visualHandle) {
+    console.warn(`[ProjectileBatchRenderer] capacity exhausted for ${visualFamily}`);
+  }
 
   return {
     ...options,
@@ -145,7 +130,6 @@ createProjectileMesh(options, fromPlayer) {
     direction: projectileDirection,
     initialVelocity: projectileInitialVelocity,
     color: displayColor,
-    emissive: emissiveColor,
     fromPlayer,
     mesh: anchor,
     visualFamily,

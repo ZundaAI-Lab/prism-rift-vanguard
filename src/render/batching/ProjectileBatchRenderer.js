@@ -37,6 +37,7 @@ export class ProjectileBatchRenderer {
   constructor(group) {
     this.group = group;
     this.familyBuckets = new Map();
+    this.activeHandles = new Set();
     for (const family of Object.values(PROJECTILE_VISUAL_FAMILY)) {
       const layerMap = new Map();
       const capacity = PROJECTILE_VISUAL_CAPACITY[family] ?? 32;
@@ -68,21 +69,28 @@ export class ProjectileBatchRenderer {
       }
       slotMap.set(layer, slot);
     }
-    return {
+    const handle = {
       renderer: this,
       family,
       meta,
       slots: slotMap,
       alive: true,
     };
+    this.activeHandles.add(handle);
+    return handle;
   }
 
   release(handle) {
     if (!handle?.alive) return false;
     const layerMap = this.familyBuckets.get(handle.family);
-    if (!layerMap) return false;
+    if (!layerMap) {
+      handle.alive = false;
+      this.activeHandles.delete(handle);
+      return false;
+    }
     for (const [layer, slot] of handle.slots.entries()) layerMap.get(layer)?.freeSlot(slot);
     handle.alive = false;
+    this.activeHandles.delete(handle);
     return true;
   }
 
@@ -140,6 +148,8 @@ export class ProjectileBatchRenderer {
   }
 
   clear() {
+    for (const handle of this.activeHandles) handle.alive = false;
+    this.activeHandles.clear();
     for (const layerMap of this.familyBuckets.values()) {
       for (const bucket of layerMap.values()) bucket.clear();
     }
@@ -152,6 +162,7 @@ export class ProjectileBatchRenderer {
   }
 
   dispose() {
+    this.clear();
     for (const layerMap of this.familyBuckets.values()) {
       for (const bucket of layerMap.values()) bucket.dispose();
     }

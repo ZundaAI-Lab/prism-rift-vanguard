@@ -66,6 +66,7 @@ getEnemyProjectileSfxCooldownMs(trackId) {
 
 spawnPlayerProjectile(options) {
   const projectile = this.createProjectileMesh(options, true);
+  if (!projectile) return null;
   this.game.store.playerProjectiles.push(projectile);
   this.syncProjectileVisual(projectile);
   return projectile;
@@ -73,6 +74,7 @@ spawnPlayerProjectile(options) {
 
 spawnEnemyProjectile(options) {
   const projectile = this.createProjectileMesh(options, false);
+  if (!projectile) return null;
   this.game.store.enemyProjectiles.push(projectile);
   this.syncProjectileVisual(projectile);
 
@@ -122,6 +124,7 @@ createProjectileMesh(options, fromPlayer) {
   const visualHandle = this.game.renderer?.batches?.projectiles?.allocate?.(visualFamily, { fromPlayer, plasma: !!options.plasma }) ?? null;
   if (!visualHandle) {
     console.warn(`[ProjectileBatchRenderer] capacity exhausted for ${visualFamily}`);
+    return null;
   }
 
   return {

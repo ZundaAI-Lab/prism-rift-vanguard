@@ -11,8 +11,150 @@ const LOOK_YAW_SENSITIVITY = 0.0024;
 const LOOK_PITCH_SENSITIVITY = 0.0028;
 const DEFAULT_MOUSE_SENSITIVITY = 1;
 const PLASMA_READY_BURST_OFFSET = new THREE.Vector3(0, 0.14, 0);
+const AXIS_MOVE_EPSILON = 0.0001;
+const FIELD_STEER_LOOKAHEAD_MIN = 0.22;
+const FIELD_STEER_LOOKAHEAD_MAX = 0.42;
+const FIELD_STEER_ANGLES = [
+  Math.PI / 14,
+  Math.PI / 9,
+  Math.PI / 6,
+  Math.PI / 4,
+  Math.PI / 3,
+];
+const STEER_MOVE_VECTOR = new THREE.Vector2();
+const STEER_DIRECTION_VECTOR = new THREE.Vector2();
+const STEER_CANDIDATE_VECTOR = new THREE.Vector2();
+const STEER_ROTATE_ORIGIN = new THREE.Vector2(0, 0);
+
+function didReachAxisTarget(currentValue, targetValue) {
+  return Math.abs(currentValue - targetValue) <= AXIS_MOVE_EPSILON;
+}
 
 export function installPlayerMovementRuntime(PlayerSystem) {
+  PlayerSystem.prototype.canPlayerMoveToFieldTarget = function canPlayerMoveToFieldTarget(player, targetX, targetZ) {
+    const startX = player.x;
+    const startZ = player.z;
+
+    player.x = targetX;
+    player.z = targetZ;
+    this.resolveFieldCollisions(player);
+    clampPointToPlayerTravelBounds(player);
+
+    const reached = didReachAxisTarget(player.x, targetX)
+      && didReachAxisTarget(player.z, targetZ);
+
+    player.x = startX;
+    player.z = startZ;
+    return reached;
+  };
+
+  PlayerSystem.prototype.computePlayerFieldSteerDelta = function computePlayerFieldSteerDelta(player, deltaX, deltaZ) {
+    STEER_MOVE_VECTOR.set(deltaX, deltaZ);
+    const moveLength = STEER_MOVE_VECTOR.length();
+    if (moveLength <= AXIS_MOVE_EPSILON) {
+      return STEER_MOVE_VECTOR;
+    }
+
+    STEER_DIRECTION_VECTOR.copy(STEER_MOVE_VECTOR).multiplyScalar(1 / moveLength);
+    const lookAhead = Math.min(
+      FIELD_STEER_LOOKAHEAD_MAX,
+      Math.max(FIELD_STEER_LOOKAHEAD_MIN, moveLength * 2.2),
+    );
+    const probeDistance = moveLength + lookAhead;
+    const probeTargetX = player.x + STEER_DIRECTION_VECTOR.x * probeDistance;
+    const probeTargetZ = player.z + STEER_DIRECTION_VECTOR.y * probeDistance;
+
+    if (this.canPlayerMoveToFieldTarget(player, probeTargetX, probeTargetZ)) {
+      return STEER_MOVE_VECTOR;
+    }
+
+    const sideOrder = this.lastFieldSteerSign === -1 ? [-1, 1] : [1, -1];
+    for (let i = 0; i < FIELD_STEER_ANGLES.length; i += 1) {
+      const angle = FIELD_STEER_ANGLES[i];
+      for (let j = 0; j < sideOrder.length; j += 1) {
+        const sign = sideOrder[j];
+        STEER_CANDIDATE_VECTOR
+          .copy(STEER_DIRECTION_VECTOR)
+          .rotateAround(STEER_ROTATE_ORIGIN, angle * sign);
+
+        const candidateProbeX = player.x + STEER_CANDIDATE_VECTOR.x * probeDistance;
+        const candidateProbeZ = player.z + STEER_CANDIDATE_VECTOR.y * probeDistance;
+        if (!this.canPlayerMoveToFieldTarget(player, candidateProbeX, candidateProbeZ)) {
+          continue;
+        }
+
+        const candidateTargetX = player.x + STEER_CANDIDATE_VECTOR.x * moveLength;
+        const candidateTargetZ = player.z + STEER_CANDIDATE_VECTOR.y * moveLength;
+        if (!this.canPlayerMoveToFieldTarget(player, candidateTargetX, candidateTargetZ)) {
+          continue;
+        }
+
+        this.lastFieldSteerSign = sign;
+        STEER_MOVE_VECTOR.copy(STEER_CANDIDATE_VECTOR).multiplyScalar(moveLength);
+        return STEER_MOVE_VECTOR;
+      }
+    }
+
+    return STEER_MOVE_VECTOR;
+  };
+
+  PlayerSystem.prototype.movePlayerWithFieldSlide = function movePlayerWithFieldSlide(player, deltaX, deltaZ) {
+    const startX = player.x;
+    const startZ = player.z;
+    const targetX = startX + deltaX;
+    const targetZ = startZ + deltaZ;
+
+    player.x = targetX;
+    player.z = targetZ;
+    this.resolveFieldCollisions(player);
+    clampPointToPlayerTravelBounds(player);
+
+    const reachedFullTarget = didReachAxisTarget(player.x, targetX)
+      && didReachAxisTarget(player.z, targetZ);
+    if (reachedFullTarget) {
+      return { movedX: true, movedZ: true };
+    }
+
+    player.x = startX;
+    player.z = startZ;
+
+    const axisOrder = Math.abs(deltaX) >= Math.abs(deltaZ)
+      ? [['x', deltaX], ['z', deltaZ]]
+      : [['z', deltaZ], ['x', deltaX]];
+
+    const result = {
+      movedX: Math.abs(deltaX) <= AXIS_MOVE_EPSILON,
+      movedZ: Math.abs(deltaZ) <= AXIS_MOVE_EPSILON,
+    };
+
+    for (let i = 0; i < axisOrder.length; i += 1) {
+      const [axis, delta] = axisOrder[i];
+      if (Math.abs(delta) <= AXIS_MOVE_EPSILON) continue;
+
+      const beforeAxisValue = axis === 'x' ? player.x : player.z;
+      const targetValue = beforeAxisValue + delta;
+
+      if (axis === 'x') {
+        player.x = targetValue;
+      } else {
+        player.z = targetValue;
+      }
+
+      this.resolveFieldCollisions(player);
+      clampPointToPlayerTravelBounds(player);
+
+      const resolvedValue = axis === 'x' ? player.x : player.z;
+      const reachedTarget = didReachAxisTarget(resolvedValue, targetValue);
+      if (axis === 'x') {
+        result.movedX = reachedTarget;
+      } else {
+        result.movedZ = reachedTarget;
+      }
+    }
+
+    return result;
+  };
+
   PlayerSystem.prototype.update = function update(dt) {
     const { state, input, store } = this.game;
     const { player } = state;
@@ -65,11 +207,14 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     player.vx *= drag;
     player.vz *= drag;
 
-    player.x += player.vx * dt;
-    player.z += player.vz * dt;
-    this.resolveFieldCollisions(player);
-
-    clampPointToPlayerTravelBounds(player);
+    const steeredMove = this.computePlayerFieldSteerDelta(player, player.vx * dt, player.vz * dt);
+    const moveResult = this.movePlayerWithFieldSlide(player, steeredMove.x, steeredMove.y);
+    if (!moveResult.movedX) {
+      player.vx = 0;
+    }
+    if (!moveResult.movedZ) {
+      player.vz = 0;
+    }
 
     const groundY = this.game.world.getHeight(player.x, player.z);
     player.bob += dt * (5 + Math.hypot(player.vx, player.vz) * 0.1);

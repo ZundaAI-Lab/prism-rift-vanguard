@@ -41,6 +41,7 @@ export const PROJECTILE_CULL_LIMIT = PLAYER_TRAVEL.radius + PROJECTILE_CULL_PADD
 export const WAVE_END_PROJECTILE_FADE_DURATION = 0.28;
 
 const TARGET_SHAPE_VECTOR = new THREE.Vector3();
+const ENEMY_HIT_CENTER = new THREE.Vector3();
 
 export function getEnemyHitRadius(enemy) {
   return Math.max(0, enemy?.radius ?? enemy?.def?.collisionRadius ?? enemy?.def?.radius ?? 0);
@@ -52,7 +53,16 @@ export function getEnemyHitHalfHeight(enemy) {
 
 export function getEnemyHitShape(enemy) {
   const shape = enemy?.collisionShape ?? enemy?.def?.collisionShape ?? 'sphere';
-  return shape === 'capsule' && getEnemyHitHalfHeight(enemy) > 0 ? 'capsule' : 'sphere';
+  if (shape === 'capsule' && getEnemyHitHalfHeight(enemy) > 0) return 'capsule';
+  if (shape === 'cylinder' && getEnemyHitHalfHeight(enemy) > 0) return 'cylinder';
+  return 'sphere';
+}
+
+export function getEnemyHitCenter(enemy, center = enemy?.mesh?.position, out = new THREE.Vector3()) {
+  const source = center ?? enemy?.mesh?.position;
+  if (!source) return out.set(0, 0, 0);
+  const yOffset = enemy?.collisionCenterYOffset ?? enemy?.def?.collisionCenterYOffset ?? 0;
+  return out.set(source.x, source.y + yOffset, source.z);
 }
 
 export function getClosestPointOnTargetSphere(origin, center, radius = 0, out = new THREE.Vector3()) {
@@ -83,11 +93,33 @@ export function getClosestPointOnVerticalCapsule(origin, center, radius = 0, hal
   return out.add(TARGET_SHAPE_VECTOR);
 }
 
+export function getClosestPointOnVerticalCylinder(origin, center, radius = 0, halfHeight = 0, out = new THREE.Vector3()) {
+  const safeHalfHeight = Math.max(0, halfHeight || 0);
+  const safeRadius = Math.max(0, radius || 0);
+  out.set(center.x, THREE.MathUtils.clamp(origin.y, center.y - safeHalfHeight, center.y + safeHalfHeight), center.z);
+  if (safeRadius <= 0) return out;
+
+  TARGET_SHAPE_VECTOR.set(origin.x - center.x, 0, origin.z - center.z);
+  const planarLengthSq = TARGET_SHAPE_VECTOR.x * TARGET_SHAPE_VECTOR.x + TARGET_SHAPE_VECTOR.z * TARGET_SHAPE_VECTOR.z;
+  if (planarLengthSq <= 0.000001) return out;
+
+  const planarLength = Math.sqrt(planarLengthSq);
+  const scale = Math.min(1, safeRadius / planarLength);
+  out.x = center.x + TARGET_SHAPE_VECTOR.x * scale;
+  out.z = center.z + TARGET_SHAPE_VECTOR.z * scale;
+  return out;
+}
+
 export function getClosestPointOnEnemyHitShape(origin, enemy, center = enemy?.mesh?.position, out = new THREE.Vector3()) {
-  if (getEnemyHitShape(enemy) === 'capsule') {
-    return getClosestPointOnVerticalCapsule(origin, center, getEnemyHitRadius(enemy), getEnemyHitHalfHeight(enemy), out);
+  const shape = getEnemyHitShape(enemy);
+  const hitCenter = getEnemyHitCenter(enemy, center, ENEMY_HIT_CENTER);
+  if (shape === 'capsule') {
+    return getClosestPointOnVerticalCapsule(origin, hitCenter, getEnemyHitRadius(enemy), getEnemyHitHalfHeight(enemy), out);
   }
-  return getClosestPointOnTargetSphere(origin, center, getEnemyHitRadius(enemy), out);
+  if (shape === 'cylinder') {
+    return getClosestPointOnVerticalCylinder(origin, hitCenter, getEnemyHitRadius(enemy), getEnemyHitHalfHeight(enemy), out);
+  }
+  return getClosestPointOnTargetSphere(origin, hitCenter, getEnemyHitRadius(enemy), out);
 }
 export const PLAYER_CORE_GEOMETRY = new THREE.SphereGeometry(1, 12, 12);
 PLAYER_CORE_GEOMETRY.userData.shared = true;

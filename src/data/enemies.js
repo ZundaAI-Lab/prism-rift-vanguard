@@ -139,12 +139,12 @@ export const ENEMY_LIBRARY = {
   },
 
   desertBoss: {
-    name: 'OBELISK TITAN', isBoss: true, behavior: 'boss_desert', mesh: 'desertBoss', hp: 2800, radius: 6.2, collisionRadius: 7.4, collisionShape: 'capsule', collisionHalfHeight: 4.2, speed: 4.8, preferredDist: 28,
+    name: 'OBELISK TITAN', isBoss: true, behavior: 'boss_desert', mesh: 'desertBoss', hp: 2800, radius: 6.2, collisionRadius: 7.4, collisionShape: 'cylinder', collisionHalfHeight: 8.5, collisionCenterYOffset: 6.0, speed: 4.8, preferredDist: 28,
     score: 2400, crystal: [14, 18], shootCd: [0.7, 1.0], attackRange: 140, attack: 'boss', bulletSpeed: 38, bulletDamage: 14,
     hover: 11.5, color: 0xffcf7a, accent: 0xff76de,
   },
   swampBoss: {
-    name: 'MYCELIUM QUEEN', isBoss: true, behavior: 'boss_swamp', mesh: 'swampBoss', hp: 4400, radius: 6.8, collisionRadius: 8.2, collisionShape: 'capsule', collisionHalfHeight: 4.6, speed: 4.4, preferredDist: 30,
+    name: 'MYCELIUM QUEEN', isBoss: true, behavior: 'boss_swamp', mesh: 'swampBoss', hp: 4400, radius: 6.8, collisionRadius: 8.2, collisionShape: 'cylinder', collisionHalfHeight: 5.4, collisionCenterYOffset: 3.4, speed: 4.4, preferredDist: 30,
     score: 2800, crystal: [16, 20], shootCd: [0.8, 1.1], attackRange: 140, attack: 'boss', bulletSpeed: 34, bulletDamage: 15,
     hover: 11.0, color: 0x93ff9c, accent: 0xc9ff7b,
   },

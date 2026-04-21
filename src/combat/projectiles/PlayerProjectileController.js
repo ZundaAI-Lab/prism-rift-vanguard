@@ -11,6 +11,7 @@ import {
   PLASMA_VERTICAL_TURN_BOOST,
   getHomingLevelFactor,
   getClosestPointOnEnemyHitShape,
+  getEnemyHitCenter,
   getEnemyHitHalfHeight,
   getEnemyHitShape,
 } from './ProjectileShared.js';
@@ -169,14 +170,18 @@ getPlayerProjectileEnemyContactPoint(projectile, enemy, enemyPosition, enemyRadi
   const enemyHalfHeight = getEnemyHitHalfHeight(enemy);
   const currentHit = enemyShape === 'capsule'
     ? this.collision.sphereVsVerticalCapsuleHit(projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius, enemyHalfHeight, out)
-    : this.collision.sphereHit(projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius);
+    : enemyShape === 'cylinder'
+      ? this.collision.sphereVsVerticalCylinderHit(projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius, enemyHalfHeight, out)
+      : this.collision.sphereHit(projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius);
   if (currentHit) return out.copy(projectile.mesh.position);
 
-  const allowSweptHit = projectile.plasma || projectile.splashRadius || enemy?.def?.isBoss || enemyShape === 'capsule';
+  const allowSweptHit = projectile.plasma || projectile.splashRadius || enemy?.def?.isBoss || enemyShape === 'capsule' || enemyShape === 'cylinder';
   if (!allowSweptHit) return null;
   const sweptHit = enemyShape === 'capsule'
     ? this.collision.sweptSphereVsVerticalCapsuleHit(PREVIOUS_PROJECTILE_POS, projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius, enemyHalfHeight, out)
-    : this.collision.sweptSphereHit(PREVIOUS_PROJECTILE_POS, projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius, out);
+    : enemyShape === 'cylinder'
+      ? this.collision.sweptSphereVsVerticalCylinderHit(PREVIOUS_PROJECTILE_POS, projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius, enemyHalfHeight, out)
+      : this.collision.sweptSphereHit(PREVIOUS_PROJECTILE_POS, projectile.mesh.position, projectile.radius, enemyPosition, enemyRadius, out);
   if (!sweptHit) return null;
   return out;
 },
@@ -190,6 +195,7 @@ resolvePlayerProjectileEnemyHits(projectile, enemyFrameView, perf) {
     if (!enemy?.alive || enemy.mesh.visible === false || projectile.hitSet.has(enemy)) continue;
     perf?.count?.('playerProjectileEnemyHitTests', 1);
     PREDICTED.set(entry.x, entry.y, entry.z);
+    getEnemyHitCenter(enemy, PREDICTED, PREDICTED);
     const contactPoint = this.getPlayerProjectileEnemyContactPoint(projectile, enemy, PREDICTED, entry.radius, PROJECTILE_ENEMY_CONTACT);
     if (!contactPoint) continue;
 

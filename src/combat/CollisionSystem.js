@@ -171,6 +171,54 @@ export class CollisionSystem {
     return distanceSq <= combinedRadius ** 2;
   }
 
+
+  sphereVsVerticalCylinderHit(sphereCenter, sphereRadius, cylinderCenter, cylinderRadius, cylinderHalfHeight = 0, outCylinderPoint = null) {
+    const safeHalfHeight = Math.max(0, cylinderHalfHeight || 0);
+    const safeRadius = Math.max(0, cylinderRadius || 0);
+    const closestY = safeHalfHeight > EPSILON
+      ? Math.max(cylinderCenter.y - safeHalfHeight, Math.min(cylinderCenter.y + safeHalfHeight, sphereCenter.y))
+      : cylinderCenter.y;
+    const dx = sphereCenter.x - cylinderCenter.x;
+    const dz = sphereCenter.z - cylinderCenter.z;
+    const planarLengthSq = (dx ** 2) + (dz ** 2);
+    if (outCylinderPoint?.set) {
+      if (planarLengthSq > EPSILON && safeRadius > 0) {
+        const planarLength = Math.sqrt(planarLengthSq);
+        const planarScale = Math.min(1, safeRadius / planarLength);
+        outCylinderPoint.set(cylinderCenter.x + dx * planarScale, closestY, cylinderCenter.z + dz * planarScale);
+      } else {
+        outCylinderPoint.set(cylinderCenter.x, closestY, cylinderCenter.z);
+      }
+    }
+
+    const verticalDist = Math.max(0, Math.abs(sphereCenter.y - cylinderCenter.y) - safeHalfHeight);
+    const planarDist = Math.max(0, Math.sqrt(planarLengthSq) - safeRadius);
+    const safeSphereRadius = Math.max(0, sphereRadius || 0);
+    return ((planarDist ** 2) + (verticalDist ** 2)) <= safeSphereRadius ** 2;
+  }
+
+  sweptSphereVsVerticalCylinderHit(startPos, endPos, movingRadius, cylinderCenter, cylinderRadius, cylinderHalfHeight = 0, outPoint = null) {
+    if (this.sphereVsVerticalCylinderHit(endPos, movingRadius, cylinderCenter, cylinderRadius, cylinderHalfHeight, outPoint)) return true;
+
+    const dx = endPos.x - startPos.x;
+    const dy = endPos.y - startPos.y;
+    const dz = endPos.z - startPos.z;
+    const distance = Math.sqrt((dx ** 2) + (dy ** 2) + (dz ** 2));
+    const safeRadius = Math.max(0, movingRadius || 0);
+    const stepSize = Math.max(0.6, safeRadius * 0.35);
+    const steps = Math.max(2, Math.min(12, Math.ceil(distance / stepSize)));
+
+    for (let i = 1; i < steps; i += 1) {
+      const t = i / steps;
+      SWEEP_SEGMENT.x = startPos.x + dx * t;
+      SWEEP_SEGMENT.y = startPos.y + dy * t;
+      SWEEP_SEGMENT.z = startPos.z + dz * t;
+      if (this.sphereVsVerticalCylinderHit(SWEEP_SEGMENT, safeRadius, cylinderCenter, cylinderRadius, cylinderHalfHeight, outPoint)) return true;
+    }
+
+    return this.sphereVsVerticalCylinderHit(startPos, safeRadius, cylinderCenter, cylinderRadius, cylinderHalfHeight, outPoint);
+  }
+
   pointSphereEdgeDistance(point, center, radius) {
     return Math.max(0, point.distanceTo(center) - Math.max(0, radius || 0));
   }

@@ -58,14 +58,20 @@ export class EnemyFactory {
     const mesh = this.createMesh(def);
     const radius = Math.max(0, def.collisionRadius ?? def.radius ?? 0);
     const collisionHalfHeight = Math.max(0, def.collisionHalfHeight ?? 0);
-    const collisionShape = (def.collisionShape === 'capsule' && collisionHalfHeight > 0) ? 'capsule' : 'sphere';
+    const collisionCenterYOffset = def.collisionCenterYOffset ?? 0;
+    const collisionShape = def.collisionShape === 'cylinder' && collisionHalfHeight > 0
+      ? 'cylinder'
+      : (def.collisionShape === 'capsule' && collisionHalfHeight > 0) ? 'capsule' : 'sphere';
     const collisionDebugMesh = this.createCollisionDebugMesh({
       shape: collisionShape,
       radius,
       halfHeight: collisionHalfHeight,
       isBoss: !!def.isBoss,
     });
-    if (collisionDebugMesh) mesh.add(collisionDebugMesh);
+    if (collisionDebugMesh) {
+      collisionDebugMesh.position.y = collisionCenterYOffset;
+      mesh.add(collisionDebugMesh);
+    }
     return {
       id: this.nextId++,
       typeKey,
@@ -74,6 +80,7 @@ export class EnemyFactory {
       radius,
       collisionShape,
       collisionHalfHeight,
+      collisionCenterYOffset,
       collisionDebugMesh,
       isBoss: !!def.isBoss,
       hp: def.hp,
@@ -98,7 +105,7 @@ export class EnemyFactory {
     if (safeRadius <= 0) return null;
 
     const material = isBoss ? BOSS_COLLISION_DEBUG_MATERIAL : ENEMY_COLLISION_DEBUG_MATERIAL;
-    if (shape === 'capsule' && halfHeight > 0) {
+    if ((shape === 'capsule' || shape === 'cylinder') && halfHeight > 0) {
       const group = new THREE.Group();
       group.name = 'EnemyCollisionDebug';
       group.visible = false;
@@ -108,17 +115,19 @@ export class EnemyFactory {
       body.renderOrder = 999;
       group.add(body);
 
-      const capTop = new THREE.Mesh(ENEMY_COLLISION_DEBUG_SPHERE_GEOMETRY, material);
-      capTop.position.y = halfHeight;
-      capTop.scale.setScalar(safeRadius);
-      capTop.renderOrder = 999;
-      group.add(capTop);
+      if (shape === 'capsule') {
+        const capTop = new THREE.Mesh(ENEMY_COLLISION_DEBUG_SPHERE_GEOMETRY, material);
+        capTop.position.y = halfHeight;
+        capTop.scale.setScalar(safeRadius);
+        capTop.renderOrder = 999;
+        group.add(capTop);
 
-      const capBottom = new THREE.Mesh(ENEMY_COLLISION_DEBUG_SPHERE_GEOMETRY, material);
-      capBottom.position.y = -halfHeight;
-      capBottom.scale.setScalar(safeRadius);
-      capBottom.renderOrder = 999;
-      group.add(capBottom);
+        const capBottom = new THREE.Mesh(ENEMY_COLLISION_DEBUG_SPHERE_GEOMETRY, material);
+        capBottom.position.y = -halfHeight;
+        capBottom.scale.setScalar(safeRadius);
+        capBottom.renderOrder = 999;
+        group.add(capBottom);
+      }
       return group;
     }
 

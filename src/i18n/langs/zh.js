@@ -214,6 +214,7 @@ export default Object.freeze({
     title: '调试控制',
     lead: '在这里查看会反映到普通“开始战役”的起始设置，以及运行中的调试专用操作。',
     startMission: '起始任务',
+    jumpToMission: '跳转到当前选中任务',
     buttonOpen: '调试 // 打开',
     godmodeOn: '调试无敌 // 开',
     godmodeOff: '调试无敌 // 关',

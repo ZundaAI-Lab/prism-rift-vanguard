@@ -214,6 +214,7 @@ export default Object.freeze({
     title: 'DEBUG CONTROL',
     lead: 'Review the start settings reflected in normal CAMPAIGN START and the debug-only runtime controls here.',
     startMission: 'START MISSION',
+    jumpToMission: 'JUMP TO SELECTED MISSION',
     buttonOpen: 'DEBUG // OPEN',
     godmodeOn: 'DEBUG GODMODE // ON',
     godmodeOff: 'DEBUG GODMODE // OFF',

@@ -54,7 +54,19 @@ export function installPauseScreenView(UIRoot) {
     titleBtn.className = 'minor screen-action-back-end';
     titleBtn.textContent = this.t('common.title');
 
-    actions.append(resumeBtn, titleBtn);
+    let debugBtn = null;
+    if (this.game.debug.isEnabled()) {
+      debugBtn = document.createElement('button');
+      debugBtn.type = 'button';
+      debugBtn.className = 'minor';
+      debugBtn.textContent = this.t('common.debug');
+      debugBtn.style.minWidth = '180px';
+      debugBtn.style.borderColor = 'rgba(255, 192, 96, 0.28)';
+      debugBtn.style.background = 'linear-gradient(180deg, rgba(70, 48, 12, 0.32), rgba(18, 12, 8, 0.18))';
+    }
+
+    if (debugBtn) actions.append(resumeBtn, debugBtn, titleBtn);
+    else actions.append(resumeBtn, titleBtn);
     card.append(eyebrow, title, lead, info, actions);
     screen.appendChild(card);
     document.getElementById('app-shell').appendChild(screen);
@@ -65,6 +77,7 @@ export function installPauseScreenView(UIRoot) {
     this.refs.pauseLead = lead;
     this.refs.pauseInfo = info;
     this.refs.pauseResumeBtn = resumeBtn;
+    this.refs.pauseDebugBtn = debugBtn;
     this.refs.pauseTitleBtn = titleBtn;
   };
 
@@ -73,6 +86,9 @@ export function installPauseScreenView(UIRoot) {
     if (this.refs.pauseTitle) this.refs.pauseTitle.textContent = this.t('common.paused');
     if (this.refs.pauseLead) this.refs.pauseLead.textContent = this.t('pause.lead');
     if (this.refs.pauseResumeBtn) this.refs.pauseResumeBtn.textContent = this.t('common.resume');
+    if (this.refs.pauseDebugBtn) {
+      this.refs.pauseDebugBtn.textContent = this.debugScreenOpen ? this.t('debug.buttonOpen') : this.t('common.debug');
+    }
     if (this.refs.pauseTitleBtn) this.refs.pauseTitleBtn.textContent = this.t('common.title');
   };
 
@@ -80,6 +96,13 @@ export function installPauseScreenView(UIRoot) {
     if (this.refs.pauseResumeBtn) this.refs.pauseResumeBtn.onclick = () => {
       this.playUiConfirm();
       this.game.resumePausedRun();
+    };
+
+    if (this.refs.pauseDebugBtn) this.refs.pauseDebugBtn.onclick = () => {
+      this.playUiConfirm();
+      if (!this.refs.debugScreen && this.createDebugScreen) this.createDebugScreen();
+      this.setDebugScreenOpen(true);
+      this.refreshDebugScreenState?.();
     };
 
     if (this.refs.pauseTitleBtn) this.refs.pauseTitleBtn.onclick = async () => {

@@ -28,6 +28,7 @@ export function installDebugScreenState(UIRoot) {
     const select = this.refs.debugStageSelect;
     const summary = this.refs.debugStageSummary;
     const openBtn = this.refs.debugOpenBtn;
+    const pauseDebugBtn = this.refs.pauseDebugBtn;
     const selectedIndex = this.game.debug.getTitleStartMissionIndex();
     const mission = MISSIONS[selectedIndex] ?? MISSIONS[0];
     const invincible = this.game.debug.isInvincible();
@@ -36,13 +37,17 @@ export function installDebugScreenState(UIRoot) {
     const missionBossOnly = !!mission?.bossOnly;
     const missionHasBoss = !!mission?.boss;
 
-    if (openBtn) {
-      openBtn.textContent = this.debugScreenOpen ? this.t('debug.buttonOpen') : this.t('common.debug');
-      openBtn.style.borderColor = this.debugScreenOpen ? 'rgba(255, 204, 120, 0.42)' : 'rgba(255, 192, 96, 0.28)';
-      openBtn.style.background = this.debugScreenOpen
+    const applyOpenButtonState = (button) => {
+      if (!button) return;
+      button.textContent = this.debugScreenOpen ? this.t('debug.buttonOpen') : this.t('common.debug');
+      button.style.borderColor = this.debugScreenOpen ? 'rgba(255, 204, 120, 0.42)' : 'rgba(255, 192, 96, 0.28)';
+      button.style.background = this.debugScreenOpen
         ? 'linear-gradient(180deg, rgba(110, 76, 20, 0.34), rgba(28, 18, 10, 0.20))'
         : 'linear-gradient(180deg, rgba(70, 48, 12, 0.32), rgba(18, 12, 8, 0.18))';
-    }
+    };
+
+    applyOpenButtonState(openBtn);
+    applyOpenButtonState(pauseDebugBtn);
 
     if (select && select.value !== String(selectedIndex)) select.value = String(selectedIndex);
 

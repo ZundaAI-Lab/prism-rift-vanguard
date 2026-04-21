@@ -214,6 +214,7 @@ export default Object.freeze({
     title: 'デバッグ制御',
     lead: '通常の CAMPAIGN START に反映する開始設定と、実行中のデバッグ専用操作をここで確認します。',
     startMission: '開始任務',
+    jumpToMission: '選択中の任務へジャンプ',
     buttonOpen: 'デバッグ // 開く',
     godmodeOn: 'DEBUG GODMODE // ON',
     godmodeOff: 'DEBUG GODMODE // OFF',

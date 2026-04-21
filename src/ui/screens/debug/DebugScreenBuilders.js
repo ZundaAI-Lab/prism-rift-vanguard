@@ -23,7 +23,7 @@ export function buildDebugScreen(root) {
 
   const screen = document.createElement('section');
   screen.className = 'screen screen-scrollable';
-  screen.style.zIndex = '42';
+  screen.style.zIndex = '46';
   screen.style.pointerEvents = 'auto';
 
   const card = document.createElement('div');
@@ -81,6 +81,15 @@ export function buildDebugScreen(root) {
     select.appendChild(option);
   });
 
+  const jumpBtn = document.createElement('button');
+  jumpBtn.type = 'button';
+  jumpBtn.className = 'minor';
+  jumpBtn.textContent = root.t('debug.jumpToMission');
+  jumpBtn.style.width = '100%';
+  jumpBtn.style.justifyContent = 'center';
+  jumpBtn.style.borderColor = 'rgba(130,255,225,0.22)';
+  jumpBtn.style.background = 'linear-gradient(180deg, rgba(30, 98, 112, 0.24), rgba(12, 28, 46, 0.20))';
+
   const summary = document.createElement('div');
   summary.style.fontSize = '13px';
   summary.style.lineHeight = '1.7';
@@ -108,7 +117,7 @@ export function buildDebugScreen(root) {
   collisionOverlayBtn.style.minWidth = '250px';
 
   toggles.append(invincibleBtn, bossModeBtn, collisionOverlayBtn);
-  panel.append(missionLabel, select, summary, toggles);
+  panel.append(missionLabel, select, jumpBtn, summary, toggles);
 
   const scroller = document.createElement('div');
   scroller.className = 'screen-scrollbox';
@@ -133,6 +142,7 @@ export function buildDebugScreen(root) {
   root.refs.debugScreen = screen;
   root.refs.debugStageSelect = select;
   root.refs.debugStageSummary = summary;
+  root.refs.debugJumpBtn = jumpBtn;
   root.refs.debugInvincibleBtn = invincibleBtn;
   root.refs.debugBossModeBtn = bossModeBtn;
   root.refs.debugCollisionOverlayBtn = collisionOverlayBtn;
@@ -152,6 +162,7 @@ export function destroyDebugScreen(root) {
   root.refs.debugPerfReport = null;
   root.refs.debugStageSelect = null;
   root.refs.debugStageSummary = null;
+  root.refs.debugJumpBtn = null;
   root.refs.debugInvincibleBtn = null;
   root.refs.debugBossModeBtn = null;
   root.refs.debugCollisionOverlayBtn = null;

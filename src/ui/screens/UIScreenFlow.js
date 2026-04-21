@@ -10,7 +10,6 @@
  * - renderHud は戦闘 HUD だけを更新し、screen 専用 state はここで順序制御する。
  * - DamageIndicator / Minimap / TargetLock の描画順はこのファイルを正本にする。
  */
-
 function resolveMinimapTargetInterval(uiRoot) {
   const quality = uiRoot.game.optionState?.graphics?.quality
     ?? uiRoot.game.renderer?.currentGraphicsOptions?.quality
@@ -30,7 +29,6 @@ function shouldRenderMinimapThisFrame(uiRoot, dt) {
   const quality = uiRoot.game.optionState?.graphics?.quality
     ?? uiRoot.game.renderer?.currentGraphicsOptions?.quality
     ?? 'high';
-
   if (control.lastQuality !== quality) {
     control.lastQuality = quality;
     control.accumulator = 0;
@@ -122,22 +120,30 @@ export function installUIScreenFlow(UIRoot) {
 
   UIRoot.prototype.renderScreens = function renderScreens() {
     const { mode } = this.game.state;
+
     if (mode !== 'title') {
       this.compendiumOpen = false;
       this.dataScreenOpen = false;
-      this.debugScreenOpen = false;
       this.creditScreenOpen = false;
     }
+    if (mode !== 'title' && mode !== 'paused') {
+      this.debugScreenOpen = false;
+    }
+
     if (mode !== 'title' && mode !== 'paused' && mode !== 'interval') {
       if (this.optionsScreenOpen) this.setOptionsScreenOpen(false);
       else this.soundTestPlaying = false;
     }
+
     const compendiumVisible = mode === 'title' && this.compendiumOpen;
     const dataScreenVisible = mode === 'title' && this.dataScreenOpen;
-    const debugScreenVisible = mode === 'title' && this.debugScreenOpen && this.game.debug.isEnabled();
+    const debugScreenVisible = (mode === 'title' || mode === 'paused')
+      && this.debugScreenOpen
+      && this.game.debug.isEnabled();
     const creditsVisible = mode === 'title' && this.creditScreenOpen;
     const optionsVisible = (mode === 'title' || mode === 'paused' || mode === 'interval') && this.optionsScreenOpen;
     const missionClearResultVisible = this.isMissionClearResultVisible();
+
     this.refs.startScreen.classList.toggle('visible', mode === 'title' && !compendiumVisible && !dataScreenVisible && !debugScreenVisible && !creditsVisible && !optionsVisible);
     this.refs.enemyIntelScreen.classList.toggle('visible', compendiumVisible);
     this.refs.dataScreen?.classList.toggle('visible', dataScreenVisible);
@@ -147,12 +153,11 @@ export function installUIScreenFlow(UIRoot) {
     this.refs.intervalScreen.classList.toggle('visible', mode === 'interval' && !optionsVisible);
     this.refs.gameOverScreen.classList.toggle('visible', mode === 'gameover');
     this.refs.clearScreen.classList.toggle('visible', mode === 'clear');
-    this.refs.pauseScreen.classList.toggle('visible', mode === 'paused' && !optionsVisible);
+    this.refs.pauseScreen.classList.toggle('visible', mode === 'paused' && !debugScreenVisible && !optionsVisible);
 
     if (this.refs.clearButtons) {
       this.refs.clearButtons.style.display = '';
     }
-
     if (this.refs.clearInlineResult && !missionClearResultVisible) {
       this.refs.clearInlineResult.style.opacity = '0';
       this.refs.clearInlineResult.style.display = 'none';

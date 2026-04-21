@@ -1,14 +1,57 @@
 import * as THREE from 'three';
 import { CAMPAIGN_START_MISSION_INDEX, MISSIONS } from '../data/missions.js';
 import { translate } from '../i18n/index.js';
-import { StaticColliderOverlayRenderer } from '../render/debug/StaticColliderOverlayRenderer.js';
-import { buildStaticColliderDebugEntries } from '../world/environment/StaticColliderDebugView.js';
 import { PerformanceMonitor } from './perf/PerformanceMonitor.js';
 import { NullPerformanceMonitor } from './perf/NullPerformanceMonitor.js';
 import { MissionPerformanceSession } from './perf/MissionPerformanceSession.js';
 
 const DEBUG_PROJECTED = new THREE.Vector3();
 const PERFORMANCE_REPORT_HISTORY_LIMIT = 10;
+
+const STATIC_COLLIDER_DEBUG_GEOMETRY = new THREE.CylinderGeometry(1, 1, 1, 20, 1, false);
+STATIC_COLLIDER_DEBUG_GEOMETRY.userData.shared = true;
+
+const STATIC_COLLIDER_PLAYER_DEBUG_MATERIAL = new THREE.MeshBasicMaterial({
+  color: 0xff8be8,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.7,
+  depthWrite: false,
+  depthTest: false,
+  toneMapped: false,
+});
+STATIC_COLLIDER_PLAYER_DEBUG_MATERIAL.userData.shared = true;
+
+const STATIC_COLLIDER_PROJECTILE_DEBUG_MATERIAL = new THREE.MeshBasicMaterial({
+  color: 0xffcf6f,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.66,
+  depthWrite: false,
+  depthTest: false,
+  toneMapped: false,
+});
+STATIC_COLLIDER_PROJECTILE_DEBUG_MATERIAL.userData.shared = true;
+
+const STATIC_COLLIDER_MISC_DEBUG_MATERIAL = new THREE.MeshBasicMaterial({
+  color: 0xa6ffd8,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+  depthTest: false,
+  toneMapped: false,
+});
+STATIC_COLLIDER_MISC_DEBUG_MATERIAL.userData.shared = true;
+
+function createStaticColliderDebugMesh(material) {
+  const mesh = new THREE.Mesh(STATIC_COLLIDER_DEBUG_GEOMETRY, material);
+  mesh.name = 'StaticColliderDebug';
+  mesh.visible = false;
+  mesh.renderOrder = 999;
+  mesh.frustumCulled = false;
+  return mesh;
+}
 
 /**
  * Responsibility:
@@ -20,7 +63,6 @@ const PERFORMANCE_REPORT_HISTORY_LIMIT = 10;
  * - 永続化は行わず、URL 以外を真実源にしない。
  * - 実行中に切り替える設定値はここで保持し、新しい state へ再接続するときもここから再適用する。
  * - デバッグ専用ホットキーもここで解釈し、通常ゲームシステムへ責務を漏らさない。
- * - Three.js の個別デバッグ描画実装はここへ抱え込まず、専用 renderer / view へ委譲する。
  */
 export class DebugSystem {
   constructor(state, search = window.location.search) {
@@ -35,7 +77,8 @@ export class DebugSystem {
     this.latestPerformanceReport = null;
     this.activeMissionPerformance = null;
     this.lastGame = null;
-    this.staticColliderOverlay = null;
+    this.staticColliderDebugMeshes = new Map();
+    this.staticColliderDebugGroup = null;
     this.attachState(state);
   }
 
@@ -250,12 +293,7 @@ export class DebugSystem {
   syncCollisionOverlay(game) {
     const visible = this.enabled && this.collisionOverlayEnabled;
     this.syncEnemyCollisionOverlay(game, visible);
-
-    const overlay = this.ensureStaticColliderOverlay(game);
-    if (!overlay) return;
-    overlay.setVisible(visible);
-    if (!visible) return;
-    overlay.sync(buildStaticColliderDebugEntries(game?.world));
+    this.syncStaticCollisionOverlay(game, visible);
   }
 
   syncEnemyCollisionOverlay(game, visible) {
@@ -269,13 +307,69 @@ export class DebugSystem {
     }
   }
 
-  ensureStaticColliderOverlay(game) {
+  syncStaticCollisionOverlay(game, visible) {
+    const group = this.ensureStaticColliderDebugGroup(game);
+    if (!group) return;
+
+    group.visible = visible;
+    if (!visible) return;
+
+    const colliders = game?.world?.staticColliders ?? [];
+    const activeColliders = new Set();
+    for (let i = 0; i < colliders.length; i += 1) {
+      const collider = colliders[i];
+      if (!collider) continue;
+      game?.world?.refreshCollider?.(collider);
+      const debugMesh = this.ensureStaticColliderDebugMesh(group, collider);
+      if (!debugMesh) continue;
+      this.updateStaticColliderDebugMesh(debugMesh, collider);
+      activeColliders.add(collider);
+    }
+
+    for (const [collider, debugMesh] of this.staticColliderDebugMeshes) {
+      if (activeColliders.has(collider)) continue;
+      debugMesh.removeFromParent();
+      this.staticColliderDebugMeshes.delete(collider);
+    }
+  }
+
+  ensureStaticColliderDebugGroup(game) {
     const rendererGroup = game?.renderer?.groups?.debug ?? game?.renderer?.groups?.fx;
     if (!rendererGroup) return null;
-    if (!this.staticColliderOverlay || this.staticColliderOverlay.parentGroup !== rendererGroup) {
-      this.staticColliderOverlay?.dispose?.();
-      this.staticColliderOverlay = new StaticColliderOverlayRenderer(rendererGroup);
+    if (!this.staticColliderDebugGroup) {
+      this.staticColliderDebugGroup = new THREE.Group();
+      this.staticColliderDebugGroup.name = 'StaticColliderDebugGroup';
+      this.staticColliderDebugGroup.visible = false;
     }
-    return this.staticColliderOverlay;
+    if (this.staticColliderDebugGroup.parent !== rendererGroup) {
+      rendererGroup.add(this.staticColliderDebugGroup);
+    }
+    return this.staticColliderDebugGroup;
+  }
+
+  ensureStaticColliderDebugMesh(group, collider) {
+    if (collider?.blocksPlayer === false && collider?.blocksProjectiles === false) return null;
+    let debugMesh = this.staticColliderDebugMeshes.get(collider);
+    if (!debugMesh) {
+      debugMesh = createStaticColliderDebugMesh(this.getStaticColliderDebugMaterial(collider));
+      this.staticColliderDebugMeshes.set(collider, debugMesh);
+      group.add(debugMesh);
+    }
+    debugMesh.material = this.getStaticColliderDebugMaterial(collider);
+    return debugMesh;
+  }
+
+  getStaticColliderDebugMaterial(collider) {
+    if (collider?.blocksPlayer !== false) return STATIC_COLLIDER_PLAYER_DEBUG_MATERIAL;
+    if (collider?.blocksProjectiles !== false) return STATIC_COLLIDER_PROJECTILE_DEBUG_MATERIAL;
+    return STATIC_COLLIDER_MISC_DEBUG_MATERIAL;
+  }
+
+  updateStaticColliderDebugMesh(debugMesh, collider) {
+    const radius = Math.max(0.01, Number(collider?.radius) || 0.01);
+    const halfHeight = Math.max(0.02, Number(collider?.halfHeight ?? collider?.verticalRadius ?? collider?.radius) || 0.02);
+    debugMesh.position.set(collider?.x ?? 0, collider?.y ?? 0, collider?.z ?? 0);
+    debugMesh.scale.set(radius, Math.max(halfHeight * 2, 0.04), radius);
+    debugMesh.visible = true;
   }
 }

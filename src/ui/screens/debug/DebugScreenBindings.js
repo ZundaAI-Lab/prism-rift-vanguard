@@ -32,6 +32,14 @@ export function installDebugScreenBindings(UIRoot) {
       this.refreshDebugScreenState();
     };
 
+    if (this.refs.debugJumpBtn) this.refs.debugJumpBtn.onclick = () => {
+      this.playUiConfirm();
+      const missionIndex = this.game.debug.getTitleStartMissionIndex();
+      this.setDebugScreenOpen(false);
+      this.setCompendiumOpen?.(false);
+      this.game.startNewRun(missionIndex);
+    };
+
     if (this.refs.debugScreenCloseBtn) this.refs.debugScreenCloseBtn.onclick = () => {
       this.playUiCancel();
       this.setDebugScreenOpen(false);

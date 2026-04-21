@@ -24,6 +24,7 @@ export function installDebugScreenState(UIRoot) {
 
     const invincibleBtn = this.refs.debugInvincibleBtn;
     const bossModeBtn = this.refs.debugBossModeBtn;
+    const collisionOverlayBtn = this.refs.debugCollisionOverlayBtn;
     const select = this.refs.debugStageSelect;
     const summary = this.refs.debugStageSummary;
     const openBtn = this.refs.debugOpenBtn;
@@ -31,6 +32,7 @@ export function installDebugScreenState(UIRoot) {
     const mission = MISSIONS[selectedIndex] ?? MISSIONS[0];
     const invincible = this.game.debug.isInvincible();
     const bossMode = this.game.debug.isBossMode();
+    const collisionOverlay = this.game.debug.isCollisionOverlayEnabled();
     const missionBossOnly = !!mission?.bossOnly;
     const missionHasBoss = !!mission?.boss;
 
@@ -62,6 +64,15 @@ export function installDebugScreenState(UIRoot) {
       bossModeBtn.style.color = bossMode ? '#dffbff' : '';
     }
 
+    if (collisionOverlayBtn) {
+      collisionOverlayBtn.textContent = collisionOverlay ? this.t('debug.colliderOverlayOn') : this.t('debug.colliderOverlayOff');
+      collisionOverlayBtn.style.borderColor = collisionOverlay ? 'rgba(255, 139, 232, 0.48)' : 'rgba(255,255,255,0.12)';
+      collisionOverlayBtn.style.background = collisionOverlay
+        ? 'linear-gradient(180deg, rgba(255, 139, 232, 0.24), rgba(94, 52, 132, 0.14))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))';
+      collisionOverlayBtn.style.color = collisionOverlay ? '#ffe5fb' : '';
+    }
+
     this.refreshDebugPerformanceReportView();
 
     if (summary) {
@@ -77,6 +88,7 @@ export function installDebugScreenState(UIRoot) {
         else if (missionBossOnly) modeNotes.push(this.t('debug.modeAlreadyBossDirect'));
         else modeNotes.push(this.t('debug.modeWaveSkip'));
       }
+      if (collisionOverlay) modeNotes.push(this.t('debug.colliderOverlayNote'));
       modeNotes.push(this.t('debug.runtimePurge'));
       summary.textContent = [baseMissionText, ...modeNotes].join(' / ');
     }

@@ -21,6 +21,12 @@ export function installDebugScreenBindings(UIRoot) {
       this.refreshDebugScreenState();
     };
 
+    if (this.refs.debugCollisionOverlayBtn) this.refs.debugCollisionOverlayBtn.onclick = () => {
+      this.playUiConfirm();
+      this.game.debug.toggleCollisionOverlay();
+      this.refreshDebugScreenState();
+    };
+
     if (this.refs.debugStageSelect) this.refs.debugStageSelect.onchange = (event) => {
       this.game.debug.setTitleStartMissionIndex(event.currentTarget.value);
       this.refreshDebugScreenState();

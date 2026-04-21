@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { CAMPAIGN_START_MISSION_INDEX, MISSIONS } from '../data/missions.js';
 import { translate } from '../i18n/index.js';
+import { StaticColliderOverlayRenderer } from '../render/debug/StaticColliderOverlayRenderer.js';
+import { buildStaticColliderDebugEntries } from '../world/environment/StaticColliderDebugView.js';
 import { PerformanceMonitor } from './perf/PerformanceMonitor.js';
 import { NullPerformanceMonitor } from './perf/NullPerformanceMonitor.js';
 import { MissionPerformanceSession } from './perf/MissionPerformanceSession.js';
@@ -18,6 +20,7 @@ const PERFORMANCE_REPORT_HISTORY_LIMIT = 10;
  * - 永続化は行わず、URL 以外を真実源にしない。
  * - 実行中に切り替える設定値はここで保持し、新しい state へ再接続するときもここから再適用する。
  * - デバッグ専用ホットキーもここで解釈し、通常ゲームシステムへ責務を漏らさない。
+ * - Three.js の個別デバッグ描画実装はここへ抱え込まず、専用 renderer / view へ委譲する。
  */
 export class DebugSystem {
   constructor(state, search = window.location.search) {
@@ -26,10 +29,13 @@ export class DebugSystem {
     this.bossMode = false;
     this.titleStartMissionIndex = CAMPAIGN_START_MISSION_INDEX;
     this.performanceOverlayEnabled = false;
+    this.collisionOverlayEnabled = false;
     this.performanceMonitor = this.enabled ? new PerformanceMonitor() : new NullPerformanceMonitor();
     this.performanceReportHistory = [];
     this.latestPerformanceReport = null;
     this.activeMissionPerformance = null;
+    this.lastGame = null;
+    this.staticColliderOverlay = null;
     this.attachState(state);
   }
 
@@ -55,6 +61,8 @@ export class DebugSystem {
   }
 
   update(game) {
+    if (game) this.lastGame = game;
+    this.syncCollisionOverlay(game);
     if (!this.enabled || !game?.input) return;
     if (game.input.wasPressed('KeyC')) {
       this.clearVisibleEnemies(game);
@@ -135,6 +143,20 @@ export class DebugSystem {
 
   togglePerformanceOverlay() {
     return this.setPerformanceOverlayEnabled(!this.performanceOverlayEnabled);
+  }
+
+  isCollisionOverlayEnabled() {
+    return this.enabled && this.collisionOverlayEnabled;
+  }
+
+  setCollisionOverlayEnabled(enabled) {
+    this.collisionOverlayEnabled = !!enabled;
+    this.syncCollisionOverlay(this.lastGame);
+    return this.collisionOverlayEnabled;
+  }
+
+  toggleCollisionOverlay() {
+    return this.setCollisionOverlayEnabled(!this.collisionOverlayEnabled);
   }
 
   capturePerformanceSnapshot(slot = 'baseline') {
@@ -223,5 +245,37 @@ export class DebugSystem {
     return DEBUG_PROJECTED.z >= -1 && DEBUG_PROJECTED.z <= 1
       && Math.abs(DEBUG_PROJECTED.x) <= 1.08
       && Math.abs(DEBUG_PROJECTED.y) <= 1.08;
+  }
+
+  syncCollisionOverlay(game) {
+    const visible = this.enabled && this.collisionOverlayEnabled;
+    this.syncEnemyCollisionOverlay(game, visible);
+
+    const overlay = this.ensureStaticColliderOverlay(game);
+    if (!overlay) return;
+    overlay.setVisible(visible);
+    if (!visible) return;
+    overlay.sync(buildStaticColliderDebugEntries(game?.world));
+  }
+
+  syncEnemyCollisionOverlay(game, visible) {
+    const enemies = game?.store?.enemies;
+    const setCollisionDebugVisible = game?.enemies?.factory?.setCollisionDebugVisible?.bind?.(game.enemies.factory);
+    if (!Array.isArray(enemies) || !setCollisionDebugVisible) return;
+    for (let i = 0; i < enemies.length; i += 1) {
+      const enemy = enemies[i];
+      if (!enemy) continue;
+      setCollisionDebugVisible(enemy, visible);
+    }
+  }
+
+  ensureStaticColliderOverlay(game) {
+    const rendererGroup = game?.renderer?.groups?.debug ?? game?.renderer?.groups?.fx;
+    if (!rendererGroup) return null;
+    if (!this.staticColliderOverlay || this.staticColliderOverlay.parentGroup !== rendererGroup) {
+      this.staticColliderOverlay?.dispose?.();
+      this.staticColliderOverlay = new StaticColliderOverlayRenderer(rendererGroup);
+    }
+    return this.staticColliderOverlay;
   }
 }

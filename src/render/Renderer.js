@@ -105,6 +105,7 @@ export class Renderer {
       world: new THREE.Group(),
       actors: new THREE.Group(),
       fx: new THREE.Group(),
+      debug: new THREE.Group(),
       pickups: new THREE.Group(),
     };
     this.batchedGroups = {
@@ -115,6 +116,7 @@ export class Renderer {
       this.groups.world,
       this.groups.actors,
       this.groups.fx,
+      this.groups.debug,
       this.groups.pickups,
       this.batchedGroups.pickups,
       this.batchedGroups.projectiles,

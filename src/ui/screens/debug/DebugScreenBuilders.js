@@ -102,7 +102,12 @@ export function buildDebugScreen(root) {
   bossModeBtn.className = 'minor';
   bossModeBtn.style.minWidth = '250px';
 
-  toggles.append(invincibleBtn, bossModeBtn);
+  const collisionOverlayBtn = document.createElement('button');
+  collisionOverlayBtn.type = 'button';
+  collisionOverlayBtn.className = 'minor';
+  collisionOverlayBtn.style.minWidth = '250px';
+
+  toggles.append(invincibleBtn, bossModeBtn, collisionOverlayBtn);
   panel.append(missionLabel, select, summary, toggles);
 
   const scroller = document.createElement('div');
@@ -130,6 +135,7 @@ export function buildDebugScreen(root) {
   root.refs.debugStageSummary = summary;
   root.refs.debugInvincibleBtn = invincibleBtn;
   root.refs.debugBossModeBtn = bossModeBtn;
+  root.refs.debugCollisionOverlayBtn = collisionOverlayBtn;
   root.refs.debugScreenCloseBtn = backBtn;
   root.bindDebugScreenControls();
   root.refreshDebugScreenState();
@@ -148,6 +154,7 @@ export function destroyDebugScreen(root) {
   root.refs.debugStageSummary = null;
   root.refs.debugInvincibleBtn = null;
   root.refs.debugBossModeBtn = null;
+  root.refs.debugCollisionOverlayBtn = null;
   root.refs.debugScreenCloseBtn = null;
   root.refs.debugOpenBtn = null;
 }

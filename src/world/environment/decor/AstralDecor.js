@@ -17,7 +17,7 @@ export function installAstralDecor(EnvironmentBuilder) {
       const centralSpawnSafeRadius = 26;
       const coralCount = 36;
       const shellCount = 18;
-      const coralColliderRadius = 2.8;
+      const coralColliderRadius = 2.2;
       const shellColliderRadius = 3.2;
       const decorGelPadding = 12;
   
@@ -119,23 +119,47 @@ export function installAstralDecor(EnvironmentBuilder) {
         if (overlapsGelPlacement(x, z, coralColliderRadius)) continue;
         const y = this.terrain.getHeight(x, z);
         const coral = new THREE.Group();
+        const coralCollisionDiscs = [];
+        let coralTop = 0;
         const stemMat = new THREE.MeshStandardMaterial({ color: randChoice([0x4c4fff, 0x5f2cff, 0x813dff]), emissive: 0x211b6d, emissiveIntensity: 0.38, roughness: 0.48, metalness: 0.12 });
         const tipMat = new THREE.MeshStandardMaterial({ color: randChoice([0x7cf6ff, 0xff95f2, 0x8ffff4]), emissive: randChoice([0x6cecff, 0xff82ea, 0x80fff4]), emissiveIntensity: 1.1, roughness: 0.14, metalness: 0.18 });
+        const coralDiscPoint = new THREE.Vector3();
         for (let branch = 0; branch < 3; branch += 1) {
           const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.38, randRange(3.2, 6.4), 8), stemMat);
-          stem.position.y = stem.geometry.parameters.height * 0.5;
+          const stemHeight = stem.geometry.parameters.height;
+          stem.position.y = stemHeight * 0.5;
           stem.rotation.z = randRange(-0.3, 0.3);
           stem.rotation.x = randRange(-0.12, 0.12);
           stem.rotation.y = (branch / 3) * Math.PI * 2;
-          const tip = new THREE.Mesh(new THREE.IcosahedronGeometry(randRange(0.55, 1.1), 0), tipMat);
-          tip.position.y = stem.geometry.parameters.height * 0.52;
+          const tipRadius = randRange(0.55, 1.1);
+          const tip = new THREE.Mesh(new THREE.IcosahedronGeometry(tipRadius, 0), tipMat);
+          tip.position.y = stemHeight * 0.52;
           stem.add(tip);
           coral.add(stem);
+
+          stem.updateMatrixWorld(true);
+          coralDiscPoint.set(0, stemHeight * 0.58, 0);
+          stem.localToWorld(coralDiscPoint);
+          const branchHalfHeight = Math.max(1.25, stemHeight * 0.44 + tipRadius * 0.45);
+          coralCollisionDiscs.push({
+            x: coralDiscPoint.x,
+            y: coralDiscPoint.y,
+            z: coralDiscPoint.z,
+            radius: 0.26,
+            halfHeight: branchHalfHeight,
+          });
+          coralTop = Math.max(coralTop, coralDiscPoint.y + branchHalfHeight);
         }
+        const coralHalfHeight = Math.max(1.6, coralTop);
         coral.position.set(x, y, z);
         coral.rotation.y = Math.random() * Math.PI * 2;
         staticGroup.add(coral);
-        this.registerStaticCollider(coral, coralColliderRadius, 2.4);
+        this.registerStaticCollider(coral, coralColliderRadius, 0.0, {
+          verticalRadius: coralHalfHeight,
+          halfHeight: coralHalfHeight,
+          playerCollisionModel: 'compound',
+          playerCollisionDiscs: coralCollisionDiscs,
+        });
         coralPlaced += 1;
       }
   
@@ -145,14 +169,26 @@ export function installAstralDecor(EnvironmentBuilder) {
         const z = THREE.MathUtils.randFloatSpread(330);
         if (overlapsGelPlacement(x, z, shellColliderRadius, decorGelPadding + 6)) continue;
         const y = this.terrain.getHeight(x, z) + randRange(5, 12);
+        const shellRadius = randRange(1.8, 3.8);
+        const shellTubeRadius = 0.18;
         const shell = new THREE.Mesh(
-          new THREE.TorusKnotGeometry(randRange(1.8, 3.8), 0.18, 64, 8),
+          new THREE.TorusKnotGeometry(shellRadius, shellTubeRadius, 64, 8),
           new THREE.MeshStandardMaterial({ color: 0x9de9ff, emissive: 0xff89f0, emissiveIntensity: 0.65, roughness: 0.12, metalness: 0.28 }),
         );
         shell.position.set(x, y, z);
         shell.rotation.set(randRange(0, Math.PI), randRange(0, Math.PI), randRange(0, Math.PI));
         staticGroup.add(shell);
-        this.registerStaticCollider(shell, shellColliderRadius, 0.0);
+        this.registerStaticCollider(shell, shellRadius + shellTubeRadius, 0.0, {
+          blocksPlayer: true,
+          blocksProjectiles: true,
+          minimapObstacle: false,
+          playerCollisionModel: 'ring',
+          reflectionModel: 'ring',
+          ringRadius: shellRadius,
+          tubeRadius: Math.max(0.22, shellTubeRadius),
+          verticalRadius: shellRadius + shellTubeRadius,
+          halfHeight: shellRadius + shellTubeRadius,
+        });
         shellPlaced += 1;
       }
   

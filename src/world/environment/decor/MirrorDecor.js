@@ -14,8 +14,11 @@ export function installMirrorDecor(EnvironmentBuilder) {
         const x = THREE.MathUtils.randFloatSpread(350);
         const z = THREE.MathUtils.randFloatSpread(350);
         const y = this.terrain.getHeight(x, z);
+        const width = randRange(1.6, 3.4);
+        const height = randRange(6.0, 12.0);
+        const depth = randRange(0.3, 0.8);
         const slab = new THREE.Mesh(
-          new THREE.BoxGeometry(randRange(1.6, 3.4), randRange(6.0, 12.0), randRange(0.3, 0.8)),
+          new THREE.BoxGeometry(width, height, depth),
           new THREE.MeshPhysicalMaterial({
             color: 0xf4f7ff,
             emissive: 0x6b8dff,
@@ -27,19 +30,22 @@ export function installMirrorDecor(EnvironmentBuilder) {
             reflectivity: 1.0,
           }),
         );
-        slab.position.set(x, y + slab.geometry.parameters.height * 0.5, z);
+        slab.position.set(x, y + height * 0.5, z);
         slab.rotation.y = Math.random() * Math.PI * 2;
         slab.castShadow = true;
         staticGroup.add(slab);
-        this.registerStaticCollider(slab, Math.max(slab.geometry.parameters.width, slab.geometry.parameters.height * 0.28), 0, {
+        this.registerStaticCollider(slab, Math.hypot(width * 0.5, depth * 0.5), 0, {
           reflective: true,
           reflectionModel: 'plane',
+          playerCollisionModel: 'obb',
           surfaceNormalLocal: new THREE.Vector3(0, 0, 1),
           localHalfExtents: new THREE.Vector3(
-            slab.geometry.parameters.width * 0.5,
-            slab.geometry.parameters.height * 0.5,
-            slab.geometry.parameters.depth * 0.5,
+            width * 0.5,
+            height * 0.5,
+            depth * 0.5,
           ),
+          verticalRadius: height * 0.5,
+          halfHeight: height * 0.5,
         });
       }
     }

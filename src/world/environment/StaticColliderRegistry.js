@@ -48,6 +48,36 @@ function compactCandidates(candidates, predicate) {
   return candidates;
 }
 
+function normalizePlayerCollisionDiscs(discs) {
+  if (!Array.isArray(discs) || discs.length === 0) return null;
+  const normalized = [];
+  for (let i = 0; i < discs.length; i += 1) {
+    const disc = discs[i];
+    if (!disc) continue;
+    const radius = Math.max(0.01, Number(disc.radius) || 0.01);
+    normalized.push({
+      x: Number(disc.x) || 0,
+      y: Number(disc.y) || 0,
+      z: Number(disc.z) || 0,
+      radius,
+      halfHeight: Math.max(0.02, Number(disc.halfHeight ?? radius) || radius),
+    });
+  }
+  return normalized.length > 0 ? normalized : null;
+}
+
+function getCompoundGridRadius(discs) {
+  if (!Array.isArray(discs) || discs.length === 0) return 0;
+  let maxRadius = 0;
+  for (let i = 0; i < discs.length; i += 1) {
+    const disc = discs[i];
+    if (!disc) continue;
+    const planarRadius = Math.hypot(disc.x ?? 0, disc.z ?? 0) + Math.max(0, disc.radius ?? 0);
+    if (planarRadius > maxRadius) maxRadius = planarRadius;
+  }
+  return maxRadius;
+}
+
 export function installStaticColliderRegistry(EnvironmentBuilder) {
   EnvironmentBuilder.prototype.markStaticColliderIndexDirty = function markStaticColliderIndexDirty() {
       ensureStaticColliderStorage(this);
@@ -81,6 +111,7 @@ export function installStaticColliderRegistry(EnvironmentBuilder) {
       collider.blocksPlayer = collider.blocksPlayer !== false;
       collider.blocksProjectiles = collider.blocksProjectiles !== false;
       collider.minimapObstacle = collider.minimapObstacle !== false && collider.blocksPlayer !== false;
+      collider.playerCollisionDiscs = normalizePlayerCollisionDiscs(collider.playerCollisionDiscs);
 
       if (collider.surfaceNormalLocal) {
         if (!collider.worldQuaternion && source?.getWorldQuaternion) {
@@ -104,7 +135,8 @@ export function installStaticColliderRegistry(EnvironmentBuilder) {
       const tubeRadius = Math.max(0, Number(collider.tubeRadius ?? 0) || 0);
       const halfExtents = collider.localHalfExtents;
       const planarHalfDiagonal = halfExtents ? Math.hypot(halfExtents.x ?? 0, halfExtents.z ?? 0) : 0;
-      collider.gridRadius = Math.max(radius, planarHalfDiagonal, ringRadius + tubeRadius);
+      const compoundGridRadius = getCompoundGridRadius(collider.playerCollisionDiscs);
+      collider.gridRadius = Math.max(radius, planarHalfDiagonal, ringRadius + tubeRadius, compoundGridRadius);
       return collider;
     }
 

@@ -37,7 +37,13 @@ export function installDesertDecor(EnvironmentBuilder) {
         crystal.rotation.y = Math.random() * Math.PI * 2;
         crystal.castShadow = true;
         staticGroup.add(crystal);
-        this.registerStaticCollider(crystal, 1.2 + crystal.scale.y * 0.45);
+
+        const crystalRadius = crystal.geometry.parameters.radius ?? 1;
+        const crystalHalfHeight = Math.max(1.0, crystalRadius * crystal.scale.y * 0.96);
+        this.registerStaticCollider(crystal, Math.max(0.24, crystalRadius * 0.34), 0.0, {
+          verticalRadius: crystalHalfHeight,
+          halfHeight: crystalHalfHeight,
+        });
       }
       for (let i = 0; i < 30; i += 1) {
         const x = THREE.MathUtils.randFloatSpread(350);
@@ -61,8 +67,23 @@ export function installDesertDecor(EnvironmentBuilder) {
           transparent: true,
           opacity: 0.76,
         });
-  
-  
+
+        const clusterCollisionDiscs = [];
+        let clusterTop = 0;
+
+        const pushClusterDisc = (x, yPos, z, radius, halfHeight) => {
+          const safeRadius = Math.max(0.18, radius);
+          const safeHalfHeight = Math.max(0.24, halfHeight);
+          clusterCollisionDiscs.push({
+            x,
+            y: yPos,
+            z,
+            radius: safeRadius,
+            halfHeight: safeHalfHeight,
+          });
+          clusterTop = Math.max(clusterTop, yPos + safeHalfHeight);
+        };
+
         const coreGem = new THREE.Mesh(
           new THREE.OctahedronGeometry(gemRadius, 0),
           gemMaterial,
@@ -71,7 +92,14 @@ export function installDesertDecor(EnvironmentBuilder) {
         coreGem.scale.set(0.95, height / (gemRadius * 1.6), 0.95);
         coreGem.castShadow = true;
         cluster.add(coreGem);
-  
+        pushClusterDisc(
+          0,
+          coreGem.position.y,
+          0,
+          Math.max(0.56, gemRadius * 0.34),
+          Math.max(1.2, gemRadius * coreGem.scale.y * 0.92),
+        );
+
         for (let shardIndex = 0; shardIndex < 3; shardIndex += 1) {
           const shard = new THREE.Mesh(
             new THREE.OctahedronGeometry(gemRadius * randRange(0.32, 0.48), 0),
@@ -84,13 +112,25 @@ export function installDesertDecor(EnvironmentBuilder) {
           shard.scale.set(randRange(0.72, 0.92), randRange(1.25, 1.9), randRange(0.72, 0.92));
           shard.castShadow = true;
           cluster.add(shard);
+          const shardRadius = shard.geometry.parameters.radius ?? (gemRadius * 0.4);
+          pushClusterDisc(
+            shard.position.x * 0.9,
+            shard.position.y,
+            shard.position.z * 0.9,
+            Math.max(0.22, shardRadius * Math.max(shard.scale.x, shard.scale.z) * 0.34),
+            Math.max(0.65, shardRadius * shard.scale.y * 0.88),
+          );
         }
-  
+
+        const clusterHalfHeight = Math.max(1.2, clusterTop);
         cluster.position.set(x, y, z);
         cluster.rotation.y = Math.random() * Math.PI * 2;
         staticGroup.add(cluster);
-        this.registerStaticCollider(cluster, gemRadius * 1.35, height * 0.5, {
-          verticalRadius: Math.max(height * 0.6, gemRadius * 1.6),
+        this.registerStaticCollider(cluster, gemRadius * 0.82, 0.0, {
+          verticalRadius: clusterHalfHeight,
+          halfHeight: clusterHalfHeight,
+          playerCollisionModel: 'compound',
+          playerCollisionDiscs: clusterCollisionDiscs,
         });
       }
     }

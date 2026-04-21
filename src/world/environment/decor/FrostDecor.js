@@ -15,15 +15,19 @@ export function installFrostDecor(EnvironmentBuilder) {
         const z = THREE.MathUtils.randFloatSpread(360);
         const y = this.terrain.getHeight(x, z);
         const height = randRange(3.2, 10.5);
+        const shardRadius = randRange(0.5, 1.4);
         const shard = new THREE.Mesh(
-          new THREE.ConeGeometry(randRange(0.5, 1.4), height, 6),
+          new THREE.ConeGeometry(shardRadius, height, 6),
           new THREE.MeshStandardMaterial({ color: 0xebf4fb, emissive: 0x496e89, emissiveIntensity: 0.1, roughness: 0.74, metalness: 0.03 }),
         );
         shard.position.set(x, y + height * 0.5, z);
         shard.rotation.y = Math.random() * Math.PI * 2;
         shard.castShadow = true;
         staticGroup.add(shard);
-        this.registerStaticCollider(shard, 0.9 + height * 0.14, 0.0);
+        this.registerStaticCollider(shard, Math.max(0.28, shardRadius * 0.52), 0.0, {
+          verticalRadius: height * 0.5,
+          halfHeight: height * 0.5,
+        });
       }
       for (let i = 0; i < 18; i += 1) {
         const x = THREE.MathUtils.randFloatSpread(320);
@@ -50,14 +54,37 @@ export function installFrostDecor(EnvironmentBuilder) {
           transparent: true,
           opacity: 0.84,
         });
-  
+
+        const floeCollisionDiscs = [];
+        let floeTop = 0;
+
+        const pushFloeDisc = (x, yPos, z, radius, halfHeight) => {
+          const safeRadius = Math.max(0.2, radius);
+          const safeHalfHeight = Math.max(0.28, halfHeight);
+          floeCollisionDiscs.push({
+            x,
+            y: yPos,
+            z,
+            radius: safeRadius,
+            halfHeight: safeHalfHeight,
+          });
+          floeTop = Math.max(floeTop, yPos + safeHalfHeight);
+        };
+
         const core = new THREE.Mesh(new THREE.OctahedronGeometry(coreRadius, 0), coreMat);
         core.position.y = coreHeight * 0.46;
         core.scale.set(randRange(1.15, 1.45), coreHeight / (coreRadius * 1.8), randRange(0.9, 1.15));
         core.rotation.set(randRange(-0.24, 0.24), Math.random() * Math.PI * 2, randRange(-0.18, 0.18));
         core.castShadow = true;
         floe.add(core);
-  
+        pushFloeDisc(
+          0,
+          core.position.y,
+          0,
+          Math.max(0.84, coreRadius * 0.56),
+          Math.max(1.1, coreRadius * core.scale.y * 0.95),
+        );
+
         const shardCount = 4 + Math.floor(Math.random() * 3);
         for (let shardIndex = 0; shardIndex < shardCount; shardIndex += 1) {
           const shard = new THREE.Mesh(
@@ -75,8 +102,16 @@ export function installFrostDecor(EnvironmentBuilder) {
           shard.scale.set(randRange(0.6, 0.92), randRange(1.1, 1.85), randRange(0.6, 0.92));
           shard.castShadow = true;
           floe.add(shard);
+          const shardRadius = shard.geometry.parameters.radius ?? (coreRadius * 0.4);
+          pushFloeDisc(
+            shard.position.x * 0.9,
+            shard.position.y,
+            shard.position.z * 0.9,
+            Math.max(0.34, coreRadius * 0.22),
+            Math.max(0.75, shardRadius * shard.scale.y * 0.95),
+          );
         }
-  
+
         if (Math.random() < 0.75) {
           const cap = new THREE.Mesh(
             new THREE.CylinderGeometry(coreRadius * 0.72, coreRadius * 1.08, randRange(0.6, 1.2), 7),
@@ -86,12 +121,16 @@ export function installFrostDecor(EnvironmentBuilder) {
           cap.rotation.y = Math.random() * Math.PI * 2;
           floe.add(cap);
         }
-  
+
+        const floeHalfHeight = Math.max(1.0, floeTop);
         floe.position.set(x, y, z);
         floe.rotation.y = Math.random() * Math.PI * 2;
         staticGroup.add(floe);
-        this.registerStaticCollider(floe, coreRadius * 1.45, coreHeight * 0.48, {
-          verticalRadius: Math.max(coreHeight * 0.68, coreRadius * 1.75),
+        this.registerStaticCollider(floe, coreRadius * 0.88, 0.0, {
+          verticalRadius: floeHalfHeight,
+          halfHeight: floeHalfHeight,
+          playerCollisionModel: 'compound',
+          playerCollisionDiscs: floeCollisionDiscs,
         });
       }
     }

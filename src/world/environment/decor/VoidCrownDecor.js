@@ -45,7 +45,12 @@ export function installVoidCrownDecor(EnvironmentBuilder) {
         tower.position.set(x, y, z);
         tower.rotation.y = -angle + Math.PI / 2;
         staticGroup.add(tower);
-        this.registerStaticCollider(tower, 5.8, 18);
+        this.registerStaticCollider(spine, Math.hypot(2.3, 2.3), 0.0, {
+          playerCollisionModel: 'obb',
+          localHalfExtents: new THREE.Vector3(2.3, 18, 2.3),
+          verticalRadius: 18,
+          halfHeight: 18,
+        });
       }
   
       for (let i = 0; i < 16; i += 1) {
@@ -54,11 +59,17 @@ export function installVoidCrownDecor(EnvironmentBuilder) {
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const y = this.terrain.getHeight(x, z);
-        const obelisk = new THREE.Mesh(new THREE.BoxGeometry(2.1, 12 + (i % 3) * 4, 2.1), i % 2 === 0 ? crownMat : paleMat);
-        obelisk.position.set(x, y + obelisk.geometry.parameters.height * 0.5, z);
+        const obeliskHeight = 12 + (i % 3) * 4;
+        const obelisk = new THREE.Mesh(new THREE.BoxGeometry(2.1, obeliskHeight, 2.1), i % 2 === 0 ? crownMat : paleMat);
+        obelisk.position.set(x, y + obeliskHeight * 0.5, z);
         obelisk.rotation.y = angle;
         staticGroup.add(obelisk);
-        this.registerStaticCollider(obelisk, 2.2, obelisk.geometry.parameters.height * 0.25);
+        this.registerStaticCollider(obelisk, Math.hypot(1.05, 1.05), 0.0, {
+          playerCollisionModel: 'obb',
+          localHalfExtents: new THREE.Vector3(1.05, obeliskHeight * 0.5, 1.05),
+          verticalRadius: obeliskHeight * 0.5,
+          halfHeight: obeliskHeight * 0.5,
+        });
       }
   
       for (let i = 0; i < 10; i += 1) {
@@ -67,14 +78,26 @@ export function installVoidCrownDecor(EnvironmentBuilder) {
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const y = this.terrain.getHeight(x, z) + 18 + (i % 2) * 6;
+        const frameRadius = 8 + (i % 3);
+        const frameTubeRadius = 0.26;
         const frame = new THREE.Mesh(
-          new THREE.TorusGeometry(8 + (i % 3), 0.26, 10, 48),
+          new THREE.TorusGeometry(frameRadius, frameTubeRadius, 10, 48),
           new THREE.MeshStandardMaterial({ color: 0xffd5a9, emissive: 0xff7b57, emissiveIntensity: 0.42, roughness: 0.1, metalness: 0.52, transparent: true, opacity: 0.92 }),
         );
         frame.position.set(x, y, z);
         frame.rotation.set(angle * 0.35, angle, Math.PI / 2);
         staticGroup.add(frame);
-        this.registerStaticCollider(frame, 8.2, 0);
+        this.registerStaticCollider(frame, frameRadius + frameTubeRadius, 0, {
+          blocksPlayer: true,
+          blocksProjectiles: true,
+          minimapObstacle: false,
+          playerCollisionModel: 'ring',
+          reflectionModel: 'ring',
+          ringRadius: frameRadius,
+          tubeRadius: Math.max(0.3, frameTubeRadius),
+          verticalRadius: frameRadius + frameTubeRadius,
+          halfHeight: frameRadius + frameTubeRadius,
+        });
       }
     }
 

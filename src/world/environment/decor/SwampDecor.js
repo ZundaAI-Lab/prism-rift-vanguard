@@ -21,8 +21,9 @@ export function installSwampDecor(EnvironmentBuilder) {
         );
         stem.position.set(x, y + height * 0.5, z);
         stem.castShadow = true;
+        const capRadius = randRange(1.0, 2.4);
         const cap = new THREE.Mesh(
-          new THREE.SphereGeometry(randRange(1.0, 2.4), 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+          new THREE.SphereGeometry(capRadius, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
           new THREE.MeshStandardMaterial({
             color: randChoice([0x8aff80, 0x53ffce, 0xddff6d]),
             emissive: randChoice([0x5dff8b, 0x3bffb9, 0xd0ff55]),
@@ -33,7 +34,11 @@ export function installSwampDecor(EnvironmentBuilder) {
         );
         cap.position.set(x, stem.position.y + height * 0.45, z);
         staticGroup.add(stem, cap);
-        this.registerStaticCollider(stem, 0.85 + height * 0.18, height * 0.15);
+        const stemCollisionHalfHeight = Math.max(height * 0.5, height * 0.45 + capRadius);
+        this.registerStaticCollider(stem, 0.34, 0.0, {
+          verticalRadius: stemCollisionHalfHeight,
+          halfHeight: stemCollisionHalfHeight,
+        });
       }
       for (let i = 0; i < 26; i += 1) {
         const x = THREE.MathUtils.randFloatSpread(350);

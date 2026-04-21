@@ -15,15 +15,20 @@ export function installForgeDecor(EnvironmentBuilder) {
         const z = THREE.MathUtils.randFloatSpread(360);
         const y = this.terrain.getHeight(x, z);
         const height = randRange(4.0, 12.0);
+        const topRadius = randRange(0.5, 1.5);
+        const bottomRadius = randRange(0.7, 2.0);
         const pillar = new THREE.Mesh(
-          new THREE.CylinderGeometry(randRange(0.5, 1.5), randRange(0.7, 2.0), height, 6),
+          new THREE.CylinderGeometry(topRadius, bottomRadius, height, 6),
           new THREE.MeshStandardMaterial({ color: 0x4f2a21, emissive: 0x2d0f0a, emissiveIntensity: 0.46, roughness: 0.9, metalness: 0.15 }),
         );
         pillar.position.set(x, y + height * 0.5, z);
         pillar.castShadow = true;
         pillar.rotation.y = Math.random() * Math.PI * 2;
         staticGroup.add(pillar);
-        this.registerStaticCollider(pillar, 1.1 + height * 0.16, 0.0);
+        this.registerStaticCollider(pillar, Math.max(topRadius, bottomRadius) + 0.16, 0.0, {
+          verticalRadius: height * 0.5,
+          halfHeight: height * 0.5,
+        });
         if (Math.random() < 0.58) {
           const ember = new THREE.Mesh(
             new THREE.OctahedronGeometry(randRange(0.45, 1.15), 0),

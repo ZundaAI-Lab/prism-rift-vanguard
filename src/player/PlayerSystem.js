@@ -41,6 +41,7 @@ export class PlayerSystem {
     player.primaryCooldown = 0;
     player.plasmaCooldown = 0;
     this.wasPlasmaReady = true;
+    this.resetAvoidanceState?.();
     player.invulnTimer = 0;
     player.weaponHeat = 0;
     player.crashTimer = 0;

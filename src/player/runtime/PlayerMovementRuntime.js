@@ -152,6 +152,11 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     return this.avoidanceState;
   };
 
+  PlayerSystem.prototype.resetAvoidanceState = function resetAvoidanceState() {
+    this.avoidanceState = makeAvoidanceState();
+    return this.avoidanceState;
+  };
+
   PlayerSystem.prototype.clearAvoidancePlan = function clearAvoidancePlan(reason = '') {
     const state = this.ensureAvoidanceState();
     state.plan = null;

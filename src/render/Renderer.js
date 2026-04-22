@@ -77,6 +77,8 @@ function normalizeEffectStrength(value) {
  * - Rendering setup lives here.
  * - Gameplay systems may add objects only through the exported groups. Pickups and projectiles are the batched
  *   combat visual layers kept here, so their runtime anchors stay separate from the instanced draw layers.
+ * - Shared batched-visual rule: if a batch allocator returns null / no slot, callers must skip gameplay entity
+ *   creation itself. Capacity exhaustion is treated as an exceptional drop, never as a hidden fallback path.
  * - Do not place mission or combat logic in this module.
  * - Default post effects live here; gameplay-driven intensity changes belong in CameraRig.
  */

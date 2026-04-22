@@ -38,6 +38,8 @@ function buildProjectileVisualDefaults(options, fromPlayer, { displayColor, ring
  * Rules:
  * - projectile.mesh is a logic anchor only. Do not add it to the scene or attach visible child meshes here.
  * - The visible bullet body is allocated through Renderer.batches.projectiles and keyed by visualFamily.
+ * - Shared rule for all batched visuals: if the visual batch cannot allocate a slot, do not create the
+ *   gameplay entity. Capacity exhaustion is treated as an exceptional skip, never as a hidden fallback.
  * - Per-projectile appearance differences must be written into visualState so the batch renderer can mirror the old look.
  */
 export const projectileMeshFactoryMethods = {
@@ -121,6 +123,8 @@ createProjectileMesh(options, fromPlayer) {
     isShowBullet,
     useNormalShowBulletVisuals,
   });
+  // Batched-visual common rule:
+  // if no visual slot is available, skip entity creation itself.
   const visualHandle = this.game.renderer?.batches?.projectiles?.allocate?.(visualFamily, { fromPlayer, plasma: !!options.plasma }) ?? null;
   if (!visualHandle) {
     console.warn(`[ProjectileBatchRenderer] capacity exhausted for ${visualFamily}`);

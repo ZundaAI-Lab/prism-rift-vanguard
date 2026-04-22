@@ -31,6 +31,8 @@ function buildLayerMaterial(layerConfig) {
  * Rules:
  * - Gameplay keeps projectile.mesh as a logic anchor. Visible bullet geometry exists only inside these buckets.
  * - One slot index is shared by the core/halo/ring buckets for a family so per-projectile visual state stays aligned.
+ * - If allocate() returns null, callers must skip projectile creation itself. Capacity exhaustion is an exceptional
+ *   drop condition, not permission to keep a logic-only projectile alive.
  * - commitFrame() is the only place that uploads instanced buffers each frame.
  */
 export class ProjectileBatchRenderer {
@@ -58,6 +60,7 @@ export class ProjectileBatchRenderer {
   }
 
   allocate(family, meta = null) {
+    // Common batched-visual contract: null means the caller must abandon spawning the owning gameplay entity.
     const layerMap = this.familyBuckets.get(family);
     if (!layerMap) return null;
     const slotMap = new Map();

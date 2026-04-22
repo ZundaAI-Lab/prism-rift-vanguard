@@ -10,6 +10,8 @@ import { InstancedVisualBucket } from './InstancedVisualBucket.js';
  * - Pickup gameplay keeps using pickup.mesh as a logic anchor so minimap/collision code stays unchanged.
  * - The crystal material remains globally animated from RewardSystem, but individual drops no longer allocate
  *   their own mesh/material pairs.
+ * - If allocateCrystal() returns null, the caller must skip pickup creation itself. Capacity exhaustion is handled
+ *   by dropping the spawn request, not by leaving behind a logic-only pickup.
  */
 export class PickupBatchRenderer {
   constructor(group) {
@@ -42,6 +44,7 @@ export class PickupBatchRenderer {
   }
 
   allocateCrystal(meta = null) {
+    // Common batched-visual contract: null means the caller must abandon spawning the owning gameplay entity.
     return this.crystalBucket.allocate(meta);
   }
 

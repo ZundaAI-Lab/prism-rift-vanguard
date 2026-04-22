@@ -48,6 +48,8 @@ function patchMaterialForInstanceOpacity(baseMaterial) {
  *   authoritative slot owner and never cache the numeric slot separately.
  * - Per-instance opacity is supported here so gameplay systems can keep their fade logic without going back
  *   to one-mesh-per-entity rendering.
+ * - If allocate() returns null, the caller must skip gameplay entity creation itself. Do not fall back to an
+ *   invisible logic-only entity when the visual batch is full.
  * - This pool owns the cloned geometry/material pair. Do not pass its mesh into detachAndDispose(); release
  *   instances through the owning batch renderer instead.
  */
@@ -78,6 +80,7 @@ export class InstancedVisualBucket {
   }
 
   allocate(meta = null) {
+    // Common batched-visual contract: null means the caller must abandon spawning the owning gameplay entity.
     if (this.activeCount >= this.capacity) return null;
     const handle = {
       bucket: this,

@@ -21,6 +21,8 @@ const PICKUP_COLOR = new THREE.Color(COLORS.crystal);
  * - Pickup reach is evaluated on the horizontal XZ plane, not raw 3D center-to-center distance.
  * - Pickup meshes stored in the entity list are logic anchors only. The real draw work lives in
  *   Renderer.batches.pickups so high drop counts do not create one Mesh per crystal anymore.
+ * - Shared rule for all batched visuals: if the visual batch cannot allocate a slot, do not create the
+ *   gameplay entity. Capacity exhaustion is treated as an exceptional skip, never as a hidden fallback.
  */
 export class RewardSystem {
   constructor(game) {
@@ -75,6 +77,14 @@ export class RewardSystem {
         randRange(1.15, 2.35),
         Math.sin(angle) * radialSpeed + Math.cos(angle) * tangentSpeed,
       );
+      // Batched-visual common rule:
+      // if no visual slot is available, skip entity creation itself.
+      const visualHandle = this.game.renderer.batches.pickups.allocateCrystal({ kind: 'crystal' });
+      if (!visualHandle) {
+        console.warn('[PickupBatchRenderer] capacity exhausted for crystal');
+        continue;
+      }
+
       const pickup = {
         kind: 'crystal',
         value: 1,
@@ -85,7 +95,7 @@ export class RewardSystem {
         visualColor: PICKUP_COLOR.clone(),
         visualOpacity: 1,
         visualScale: mesh.scale.clone(),
-        visualHandle: this.game.renderer.batches.pickups.allocateCrystal({ kind: 'crystal' }),
+        visualHandle,
       };
       this.game.store.pickups.push(pickup);
       this.game.renderer.batches.pickups.syncCrystal(pickup);

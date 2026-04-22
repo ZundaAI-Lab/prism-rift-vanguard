@@ -15,6 +15,8 @@ const DEFAULT_COLOR = new THREE.Color(0xffffff);
  * - Slots are stable. Gameplay stores the returned slot handle and never needs swap-fixups when bullets die.
  * - Inactive slots are written with zero scale so the renderer can keep stable indices without one draw per projectile.
  * - Per-instance tint uses Three's instanceColor; opacity/glow are separate instanced attributes patched into the material.
+ * - If allocateSlot() returns -1, the family allocation must fail and the caller must skip gameplay entity
+ *   creation instead of spawning a logic-only projectile.
  */
 export class ProjectileVisualBucket {
   constructor({ group, geometry, material, capacity, renderOrder = 0 }) {
@@ -48,6 +50,7 @@ export class ProjectileVisualBucket {
   }
 
   allocateSlot() {
+    // -1 means the owning family cannot allocate a complete visual set and spawn must be skipped entirely.
     let slot = this.freeList.length > 0 ? this.freeList.pop() : this.nextSlot;
     if (slot >= this.capacity) return -1;
     if (slot === this.nextSlot) this.nextSlot += 1;

@@ -1,0 +1,22 @@
+/* Responsibility: 画面下部アクション列の共通ルール。
+ * Rule: すべての screen-actions と戻る系ボタンの整列ルールをここに集約する。
+ */
+
+.screen-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+/* Rule: あらゆる画面の「戻る」系ボタンは screen-action-back-end を使って右端へ固定する。 */
+.screen-action-back-end {
+  margin-left: auto;
+}
+
+/* IMPORTANT:
+ * 敵図鑑レイアウトは prism_rift_vanguard_modular34 の表示仕様を維持すること。
+ * - 雑魚は4列固定
+ * - 通常ボスは2列ぶんのカード幅 + 2倍プレビュー枠
+ * - voidcrown のボス2体も通常ボスと同じ2列幅で、同じ段に横並び
+ * 横スクロール回避のため、別グリッド化や auto-fit 化で崩さない。
+ */

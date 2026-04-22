@@ -1,0 +1,228 @@
+/* Responsibility: タイトル画面と共通テキストカード表現。
+ * Rule: タイトル専用装飾と、画面カード内の見出し・導入テキストを管理する。
+ */
+
+#startScreen {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(116,255,240,0.12), rgba(116,255,240,0) 32%),
+    radial-gradient(circle at 82% 22%, rgba(255,112,218,0.12), rgba(255,112,218,0) 28%),
+    linear-gradient(180deg, rgba(6, 10, 20, 0.72), rgba(3, 5, 10, 0.9));
+}
+.title-card {
+  position: relative;
+  overflow: hidden;
+  padding: 34px 36px 36px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02) 42%, rgba(8,14,24,0.38) 100%),
+    radial-gradient(circle at 0% 0%, rgba(116,255,240,0.08), rgba(116,255,240,0) 34%);
+  box-shadow:
+    0 32px 100px rgba(0,0,0,0.42),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.title-card::before,
+.title-card::after {
+  content: '';
+  position: absolute;
+  inset: auto;
+  pointer-events: none;
+}
+.title-card::before {
+  top: -72px;
+  right: -48px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(116,255,240,0.18), rgba(116,255,240,0) 68%);
+  filter: blur(10px);
+}
+.title-card::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(116,255,240,0), rgba(116,255,240,0.4), rgba(255,112,218,0.36), rgba(116,255,240,0));
+}
+.title-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.title-copy {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.title-copy .eyebrow {
+  color: rgba(210, 242, 255, 0.74);
+}
+.title-copy h1 {
+  margin: 0;
+  font-size: clamp(48px, 6vw, 84px);
+  line-height: 0.94;
+  letter-spacing: 0.08em;
+  text-wrap: balance;
+  text-shadow: 0 0 34px rgba(116,255,240,0.12);
+}
+.title-copy .lead {
+  max-width: 34ch;
+  margin: 0;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.8;
+  color: #d9ebf4;
+}
+.title-signature {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.title-signature span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(116,255,240,0.95), rgba(255,112,218,0.55));
+  box-shadow: 0 0 18px rgba(116,255,240,0.24);
+}
+.title-signature span:nth-child(1) { width: 112px; opacity: 0.95; }
+.title-signature span:nth-child(2) { width: 54px; opacity: 0.8; }
+.title-signature span:nth-child(3) { width: 18px; opacity: 0.68; }
+.title-version {
+  position: absolute;
+  right: 28px;
+  bottom: 24px;
+  z-index: 2;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(7, 13, 24, 0.72);
+  color: rgba(220, 240, 250, 0.82);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+.title-orbit {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.title-orbit-a {
+  right: 128px;
+  top: 54px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(116,255,240,0.14);
+  transform: rotate(-16deg);
+}
+.title-orbit-b {
+  right: 86px;
+  top: 34px;
+  width: 150px;
+  height: 150px;
+  border: 1px solid rgba(255,112,218,0.16);
+  transform: rotate(18deg);
+}
+.title-menu-panel {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.title-menu-panel::before {
+  content: none;
+}
+.title-menu-head {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+.title-menu-head strong {
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+}
+.title-actions {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 140px);
+  justify-content: start;
+  gap: 10px;
+  margin-top: 4px;
+  justify-items: start;
+}
+.title-actions button {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  min-height: 40px;
+  padding: 9px 12px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  justify-content: center;
+}
+.title-actions button.title-action-primary {
+  background: linear-gradient(135deg, #7ffff0, #ffffff 52%, #b9fffb);
+}
+.title-actions button.title-action-tutorial {
+  color: #04121a;
+  background: linear-gradient(135deg, #ffb9f0, #f4ffff 54%, #9efff3);
+}
+.screen-card h1,
+.screen-card h2,
+.shop-title-row h3 {
+  margin: 8px 0 12px;
+  letter-spacing: 0.05em;
+}
+.screen-card h1 {
+  font-size: clamp(38px, 6vw, 72px);
+}
+.screen-card h2 {
+  font-size: clamp(30px, 4vw, 52px);
+}
+.lead {
+  color: #d1e5ef;
+  line-height: 1.75;
+  font-size: 15px;
+  margin: 0;
+}
+.eyebrow.success { color: #b6ff9e; }
+.eyebrow.danger { color: #ff8b8b; }
+.controls-grid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(170px, 1fr));
+  gap: 12px;
+}
+.controls-grid > div,
+.info-card,
+.shop-card {
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.controls-grid strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.controls-grid span {
+  color: #c7d7df;
+  font-size: 13px;
+  line-height: 1.5;
+}

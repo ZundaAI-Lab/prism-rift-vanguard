@@ -1,0 +1,196 @@
+/* Responsibility: HUD の静的コンポーネント。
+ * Rule: ターゲットロック、ミニマップ、プラズマゲージなど戦闘HUDの土台のみ置く。
+ */
+
+.target-lock-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.target-lock-entry {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  display: none;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.target-lock-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.target-lock-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(120, 252, 255, 0.95);
+  border-style: solid;
+  border-width: 0;
+  filter: drop-shadow(0 0 8px rgba(90, 225, 255, 0.45));
+}
+.target-lock-corner-tl {
+  left: 0;
+  top: 0;
+  border-left-width: 2px;
+  border-top-width: 2px;
+}
+.target-lock-corner-tr {
+  right: 0;
+  top: 0;
+  border-right-width: 2px;
+  border-top-width: 2px;
+}
+.target-lock-corner-bl {
+  left: 0;
+  bottom: 0;
+  border-left-width: 2px;
+  border-bottom-width: 2px;
+}
+.target-lock-corner-br {
+  right: 0;
+  bottom: 0;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+.target-lock-line {
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: rgba(120, 252, 255, 0.78);
+  box-shadow: 0 0 10px rgba(90, 225, 255, 0.42);
+}
+.target-lock-line-top {
+  top: -1px;
+}
+.target-lock-line-bottom {
+  bottom: -1px;
+}
+.target-lock-label {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 4px 8px;
+  border: 1px solid rgba(140, 248, 255, 0.32);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(8, 18, 34, 0.88), rgba(4, 10, 22, 0.76));
+  color: var(--hud-accent-alt);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translate(-50%, 0);
+  box-shadow: 0 0 18px rgba(66, 218, 255, 0.22);
+  text-shadow: 0 0 10px rgba(132, 248, 255, 0.28);
+  pointer-events: none;
+}
+.minimap-wrap {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  left: auto;
+  width: 368px;
+  height: 368px;
+  overflow: hidden;
+  border: 1px solid rgba(130,255,225,0.18);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(7,12,24,0.78), rgba(5,9,18,0.62));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 44px rgba(0,0,0,0.26);
+  pointer-events: none;
+  z-index: 3;
+}
+.minimap-label {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  color: var(--hud-heading);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.minimap-canvas {
+  width: 368px;
+  height: 368px;
+  display: block;
+}
+
+.plasma-gauge {
+  box-shadow: none;
+  filter: none;
+}
+.plasma-gauge-label {
+  color: var(--hud-heading);
+  font-size: 11px;
+  text-shadow: none;
+}
+.plasma-gauge-value {
+  color: var(--hud-accent-alt);
+  font-size: 11px;
+  text-shadow: none;
+}
+.plasma-gauge-bar {
+  border-color: rgba(118,194,255,0.16) !important;
+  background: rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+}
+.plasma-gauge-fill {
+  box-shadow: 0 0 20px rgba(118,194,255,0.38) !important;
+  filter: none !important;
+}
+.plasma-gauge.is-ready {
+  animation: plasma-gauge-aura 1.18s ease-in-out infinite;
+}
+.plasma-gauge.is-ready .plasma-gauge-label {
+  color: var(--hud-text);
+  text-shadow: 0 0 12px rgba(164,241,255,0.3);
+}
+.plasma-gauge.is-ready .plasma-gauge-value {
+  color: var(--hud-text);
+  animation: plasma-gauge-text 1.18s ease-in-out infinite;
+}
+.plasma-gauge.is-ready .plasma-gauge-bar {
+  border-color: rgba(182,244,255,0.52) !important;
+  background: rgba(180,240,255,0.14) !important;
+  box-shadow: 0 0 18px rgba(116,235,255,0.3), inset 0 0 12px rgba(142,210,255,0.22) !important;
+}
+.plasma-gauge.is-ready .plasma-gauge-fill {
+  animation: plasma-gauge-fill 1.18s ease-in-out infinite;
+}
+@keyframes plasma-gauge-aura {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(116,235,255,0.26));
+    box-shadow: 0 0 20px rgba(116,235,255,0.3);
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(116,235,255,0.42));
+    box-shadow: 0 0 40px rgba(116,235,255,0.52);
+  }
+}
+@keyframes plasma-gauge-fill {
+  0%, 100% {
+    box-shadow: 0 0 24px rgba(118,194,255,0.42), inset 0 0 12px rgba(239,252,255,0.2);
+    filter: brightness(1.12) saturate(1.1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(118,194,255,0.66), inset 0 0 18px rgba(239,252,255,0.32);
+    filter: brightness(1.38) saturate(1.28);
+  }
+}
+@keyframes plasma-gauge-text {
+  0%, 100% {
+    text-shadow: 0 0 8px rgba(191,248,255,0.28);
+  }
+  50% {
+    text-shadow: 0 0 14px rgba(191,248,255,0.52);
+  }
+}

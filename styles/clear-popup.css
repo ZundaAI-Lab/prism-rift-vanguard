@@ -1,0 +1,63 @@
+/* Responsibility: キャンペーンクリア時の解放ポップアップ。
+ * Rule: クリア演出専用ポップアップのみを管理し、他画面へ波及させない。
+ */
+
+.clear-unlock-popup-screen {
+  z-index: 65;
+  pointer-events: auto;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(22, 36, 68, 0.66), rgba(4, 6, 10, 0.86)),
+    linear-gradient(180deg, rgba(6, 10, 20, 0.76), rgba(3, 5, 10, 0.88));
+}
+.clear-unlock-popup-card {
+  width: min(520px, calc(100vw - 56px));
+  position: relative;
+  overflow: hidden;
+  padding: 26px 28px 28px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03) 42%, rgba(8,14,24,0.42) 100%),
+    radial-gradient(circle at 0% 0%, rgba(116,255,240,0.08), rgba(116,255,240,0) 34%);
+  box-shadow:
+    0 30px 96px rgba(0,0,0,0.44),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.clear-unlock-popup-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, rgba(116,255,240,0.88), rgba(143,233,255,0.26));
+  box-shadow: 0 0 18px rgba(116,255,240,0.32);
+}
+.clear-unlock-popup-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(116,255,240,0), rgba(116,255,240,0.42), rgba(255,112,218,0.34), rgba(116,255,240,0));
+}
+.clear-unlock-popup-eyebrow {
+  color: #8fdfff;
+}
+.clear-unlock-popup-title {
+  margin: 8px 0 10px;
+  font-size: clamp(24px, 3.2vw, 34px);
+  letter-spacing: 0.05em;
+}
+.clear-unlock-popup-lead {
+  max-width: 32ch;
+  color: #d9ebf4;
+}
+.clear-unlock-popup-actions {
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+.clear-unlock-popup-actions button {
+  min-width: 132px;
+  justify-content: center;
+}
+.clear-unlock-popup-ok {
+  background: linear-gradient(90deg, #8ffff0, #c0fff8);
+}

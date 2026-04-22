@@ -1,0 +1,156 @@
+/* Responsibility: 汎用スクリーン基盤。
+ * Rule: 汎用 screen / screen-card / dialog の共通見た目のみを定義する。
+ */
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 22%, rgba(21, 33, 61, 0.72), rgba(4, 6, 10, 0.9));
+  pointer-events: auto;
+}
+.screen.visible {
+  display: grid;
+}
+.screen-scrollable {
+  justify-items: center;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable both-edges;
+  padding-block: clamp(12px, 2.8vh, 24px);
+}
+.screen-card {
+  width: min(760px, calc(100vw - 40px));
+  min-width: 0;
+  border-radius: 24px;
+  padding: 28px 30px 30px;
+  backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 28px 90px rgba(0,0,0,0.35);
+}
+.screen-card-shell {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  max-height: calc(100dvh - 36px);
+}
+.screen-card-shell > .screen-actions {
+  margin-top: 0;
+}
+.screen-scrollbox {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 10px;
+}
+.screen-scrollable,
+.screen-scrollbox,
+.compendium-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(116, 255, 240, 0.72) rgba(7, 12, 24, 0.42);
+}
+.screen-scrollable::-webkit-scrollbar,
+.screen-scrollbox::-webkit-scrollbar,
+.compendium-scroll::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+.screen-scrollable::-webkit-scrollbar-track,
+.screen-scrollbox::-webkit-scrollbar-track,
+.compendium-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(8, 13, 24, 0.88), rgba(8, 13, 24, 0.56));
+  border: 1px solid rgba(132, 214, 236, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+.screen-scrollable::-webkit-scrollbar-thumb,
+.screen-scrollbox::-webkit-scrollbar-thumb,
+.compendium-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid rgba(6, 10, 20, 0.86);
+  background: linear-gradient(180deg, rgba(116, 255, 240, 0.96), rgba(120, 208, 255, 0.78) 48%, rgba(255, 112, 218, 0.76));
+  box-shadow: 0 0 16px rgba(116,255,240,0.18), inset 0 0 10px rgba(255,255,255,0.2);
+}
+.screen-scrollable::-webkit-scrollbar-thumb:hover,
+.screen-scrollbox::-webkit-scrollbar-thumb:hover,
+.compendium-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(164, 255, 247, 0.98), rgba(136, 222, 255, 0.86) 48%, rgba(255, 144, 226, 0.84));
+}
+.screen-card.wide { width: min(920px, calc(100vw - 40px)); }
+.screen-card.huge { width: min(1160px, calc(100vw - 40px)); }
+.confirm-dialog-screen {
+  background:
+    radial-gradient(circle at 50% 22%, rgba(23, 37, 70, 0.84), rgba(4, 6, 10, 0.94)),
+    linear-gradient(180deg, rgba(6, 10, 20, 0.84), rgba(3, 5, 10, 0.94));
+}
+.confirm-dialog-card {
+  position: relative;
+  width: min(560px, calc(100vw - 40px));
+  overflow: hidden;
+  padding: 28px 30px 30px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03) 42%, rgba(8,14,24,0.42) 100%),
+    radial-gradient(circle at 0% 0%, rgba(116,255,240,0.08), rgba(116,255,240,0) 34%);
+  box-shadow:
+    0 30px 96px rgba(0,0,0,0.44),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.confirm-dialog-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, rgba(116,255,240,0.88), rgba(143,233,255,0.26));
+  box-shadow: 0 0 18px rgba(116,255,240,0.32);
+}
+.confirm-dialog-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(116,255,240,0), rgba(116,255,240,0.42), rgba(255,112,218,0.34), rgba(116,255,240,0));
+}
+.confirm-dialog-card[data-tone="danger"]::before {
+  background: linear-gradient(180deg, rgba(255,112,112,0.92), rgba(255,180,112,0.26));
+  box-shadow: 0 0 18px rgba(255,112,112,0.28);
+}
+.confirm-dialog-card[data-tone="danger"]::after {
+  background: linear-gradient(90deg, rgba(255,112,112,0), rgba(255,112,112,0.42), rgba(255,196,116,0.34), rgba(255,112,112,0));
+}
+.confirm-dialog-eyebrow {
+  color: #8fdfff;
+}
+.confirm-dialog-card[data-tone="danger"] .confirm-dialog-eyebrow {
+  color: #ffd2b4;
+}
+.confirm-dialog-title {
+  margin-bottom: 10px;
+}
+.confirm-dialog-message {
+  max-width: 38ch;
+  color: #d9ebf4;
+}
+.confirm-dialog-actions {
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+.confirm-dialog-actions button {
+  min-width: 136px;
+  justify-content: center;
+}
+.confirm-dialog-confirm {
+  background: linear-gradient(90deg, #8ffff0, #c0fff8);
+}
+.confirm-dialog-card[data-tone="danger"] .confirm-dialog-confirm {
+  color: #fff6f2;
+  background: linear-gradient(90deg, #ff8c78, #ffb570);
+}

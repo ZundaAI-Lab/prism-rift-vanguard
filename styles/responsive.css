@@ -1,0 +1,63 @@
+/* Responsibility: レスポンシブ調整。
+ * Rule: 既存レイアウトを崩さず、狭い画面向けの上書きのみ置く。
+ */
+
+@media (max-width: 980px) {
+  .right-panel { min-width: 0; }
+  #intervalLayout { grid-template-columns: 1fr; }
+  #shopGrid { grid-template-columns: 1fr; }
+  .title-layout { grid-template-columns: 1fr; }
+  .title-copy { min-height: 0; }
+  .title-actions {
+    grid-template-columns: repeat(2, 140px);
+  }
+}
+@media (max-width: 640px) {
+  .title-actions {
+    grid-template-columns: 140px;
+  }
+  #centerNotice { top: 22%; white-space: normal; text-align: center; }
+  #bossBarWrap { top: 168px; }
+  .tutorial-message-window {
+    border-radius: 18px;
+  }
+  .tutorial-message-header {
+    padding: 12px 14px 8px 18px;
+  }
+  .tutorial-message-body {
+    gap: 8px;
+    padding: 14px 14px 16px 18px;
+  }
+  .tutorial-message-progress {
+    letter-spacing: 0.1em;
+  }
+  .title-card {
+    padding: 28px 22px 22px;
+  }
+  .title-menu-panel {
+    padding: 0;
+  }
+  .title-copy h1 {
+    font-size: clamp(42px, 14vw, 64px);
+  }
+  .title-copy .lead {
+    max-width: none;
+  }
+  .title-orbit-a {
+    right: 42px;
+    top: 20px;
+    width: 180px;
+    height: 180px;
+  }
+  .title-orbit-b {
+    right: 18px;
+    top: 32px;
+  }
+  .title-version {
+    right: 18px;
+    bottom: 18px;
+    padding: 6px 10px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+}

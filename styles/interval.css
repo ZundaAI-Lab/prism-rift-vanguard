@@ -1,0 +1,115 @@
+/* Responsibility: 汎用ボタン、およびインターバル/ショップ画面。
+ * Rule: 操作ボタンとミッション間レイアウト・ショップカードをここで管理する。
+ */
+
+#startScreen .screen-actions:not(.title-actions) {
+  align-items: stretch;
+}
+button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 22px;
+  color: #07121a;
+  background: linear-gradient(90deg, #8ffff0, #c0fff8);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 14px 44px rgba(0,0,0,0.24);
+}
+button:hover { transform: translateY(-1px); }
+button.minor {
+  background: linear-gradient(90deg, #6c87a1, #8294b9);
+  color: #f7fbff;
+}
+button[disabled] {
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  opacity: 0.55;
+  transform: none;
+}
+.interval-screen-card {
+  width: min(1440px, calc(100vw - 24px));
+  max-width: 1440px;
+  max-height: calc(100dvh - 24px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+.interval-scrollbox {
+  display: grid;
+  gap: 18px;
+}
+
+#intervalLayout {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1.55fr;
+  gap: 18px;
+  align-items: start;
+}
+#summaryGrid {
+  display: grid;
+  gap: 12px;
+}
+.info-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 22px;
+}
+.info-card-detail {
+  margin: 12px 0 0;
+  color: #c1d7e1;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.interval-mission-briefing {
+  min-height: 8.5em;
+}
+.shop-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+#shopGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 12px;
+}
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 158px;
+}
+.shop-card h4 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+.shop-card p {
+  margin: 0;
+  color: #c1d7e1;
+  line-height: 1.6;
+  font-size: 13px;
+  flex: 1;
+}
+.shop-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  color: #ceeff8;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.shop-card .cost {
+  color: #92ffce;
+}
+.shop-card .level {
+  color: #ffe5a1;
+}
+.shop-card button {
+  width: 100%;
+}

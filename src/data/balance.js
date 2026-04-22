@@ -6,14 +6,15 @@
  * - Keep numbers only. No runtime state and no side effects.
  * - Gameplay feel is defined by these values unless a later balance patch intentionally changes it.
  * - Crystal auto-collection feel is controlled only by PICKUP radii here. RewardSystem must read both
- *   `magnetRadius` and `collectRadius` directly so CRYSTAL ATTRACT visibly expands pickup reach.
- *   `magnetRadius` is 37.8 units.
+ * `magnetRadius` and `collectRadius` directly so CRYSTAL ATTRACT visibly expands pickup reach. * `magnetRadius`
+ * is 37.8 units.
  * - Primary fire-rate tuning is expressed as multiplicative pieces so the shop text stays honest:
- *   `primaryBaseFireRate` is the real level-0 cadence the player starts with,
- *   `primaryRapidMultiplier` is the per-level PRIMARY RAPID bonus,
- *   and `primaryMultiWayRatePenalty` is the per-level MULTI-WAY fire-rate penalty.
- *   Runtime systems must compose those values in one place instead of smuggling extra cooldown edits elsewhere.
+ * `primaryBaseFireRate` is the real level-0 cadence the player starts with,
+ * `primaryRapidMultiplier` is the per-level PRIMARY RAPID bonus,
+ * and `primaryMultiWayRatePenalty` is the per-level MULTI-WAY fire-rate penalty.
+ * Runtime systems must compose those values in one place instead of smuggling extra cooldown edits elsewhere.
  */
+
 export const GAME_BOUNDS = {
   radius: 170,
   softRadius: 158,
@@ -32,6 +33,40 @@ export const PLAYER_BASE = {
   invulnAfterHit: 0.08,
 };
 
+export const PLAYER_AVOIDANCE = {
+  plannerInterval: 0.05,
+  straightSettleTime: 0.14,
+  minAssistSpeed: 8.0,
+  nearTime: 0.32,
+  farTime: 0.92,
+  nearBase: 2.0,
+  farBase: 6.0,
+  nearMin: 3.0,
+  nearMax: 10.0,
+  farMin: 8.0,
+  farMax: 28.0,
+  corridorPad: 2.8,
+  lateralClearance: 2.45,
+  forwardClearance: 4.8,
+  minPlanSpeed: 7.0,
+  minPlanLife: 0.35,
+  maxPlanLife: 1.45,
+  planFadeWindow: 0.2,
+  planTurnRate: 6.8,
+  assistWeight: 0.74,
+  intentFollowRate: 7.5,
+  intentShiftAngle: 0.42,
+  intentShiftHold: 0.15,
+  straightEnterYawRate: 0.3,
+  straightExitYawRate: 0.45,
+  manualEnterYawRate: 1.25,
+  manualExitYawRate: 0.95,
+  emergencySpeedDropRatio: 0.62,
+  emergencyBlockedFrames: 2,
+  sideStickBias: 0.18,
+  minRiskToPlan: 0.085,
+  targetPointReachRadius: 1.8,
+};
 
 export const WEAPON_BASE = {
   primaryDamage: 12,

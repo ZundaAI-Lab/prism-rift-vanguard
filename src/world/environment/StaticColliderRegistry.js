@@ -112,6 +112,7 @@ export function installStaticColliderRegistry(EnvironmentBuilder) {
       collider.blocksProjectiles = collider.blocksProjectiles !== false;
       collider.minimapObstacle = collider.minimapObstacle !== false && collider.blocksPlayer !== false;
       collider.playerCollisionDiscs = normalizePlayerCollisionDiscs(collider.playerCollisionDiscs);
+      collider.playerAvoidanceDiscs = normalizePlayerCollisionDiscs(collider.playerAvoidanceDiscs);
 
       if (collider.surfaceNormalLocal) {
         if (!collider.worldQuaternion && source?.getWorldQuaternion) {
@@ -135,7 +136,10 @@ export function installStaticColliderRegistry(EnvironmentBuilder) {
       const tubeRadius = Math.max(0, Number(collider.tubeRadius ?? 0) || 0);
       const halfExtents = collider.localHalfExtents;
       const planarHalfDiagonal = halfExtents ? Math.hypot(halfExtents.x ?? 0, halfExtents.z ?? 0) : 0;
-      const compoundGridRadius = getCompoundGridRadius(collider.playerCollisionDiscs);
+      const compoundGridRadius = Math.max(
+        getCompoundGridRadius(collider.playerCollisionDiscs),
+        getCompoundGridRadius(collider.playerAvoidanceDiscs),
+      );
       collider.gridRadius = Math.max(radius, planarHalfDiagonal, ringRadius + tubeRadius, compoundGridRadius);
       return collider;
     }
@@ -213,6 +217,19 @@ export function installStaticColliderRegistry(EnvironmentBuilder) {
       this.ensureStaticColliderGrid();
       const range = Math.max(0, radius || 0) + (this.staticColliderMaxGridRadius ?? 0) + 0.001;
       return this.collectStaticColliderCandidatesAabb(x - range, x + range, z - range, z + range, out, 'player');
+    }
+
+  EnvironmentBuilder.prototype.collectPlayerAvoidanceCandidatesSegment = function collectPlayerAvoidanceCandidatesSegment(startX, startZ, endX, endZ, pad = 0, out = []) {
+      this.ensureStaticColliderGrid();
+      const extra = Math.max(0, pad || 0) + (this.staticColliderMaxGridRadius ?? 0) + 0.001;
+      return this.collectStaticColliderCandidatesAabb(
+        Math.min(startX, endX) - extra,
+        Math.max(startX, endX) + extra,
+        Math.min(startZ, endZ) - extra,
+        Math.max(startZ, endZ) + extra,
+        out,
+        'player',
+      );
     }
 
   EnvironmentBuilder.prototype.collectProjectileCollisionCandidates = function collectProjectileCollisionCandidates(position, radius, previousPosition = null, out = []) {

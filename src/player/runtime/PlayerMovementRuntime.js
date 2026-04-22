@@ -1,3 +1,12 @@
+/**
+ * Responsibility:
+ * - player の移動、壁すべり、回避アシストの最終適用を担当する。
+ *
+ * Rules:
+ * - 回避プランナ本体は disc ベースの corridor 評価器のまま維持する。
+ * - shape ごとの差は world 側で bake 済みの playerAvoidanceDiscs に寄せ、このモジュールはそれを world 展開して使うだけにする。
+ * - 回避 plan の保持条件と assist 適用条件は同じ gate を共有し、低速や無入力では stale plan を残さない。
+ */
 import * as THREE from 'three';
 import { PLAYER_AVOIDANCE, PLAYER_BASE } from '../../data/balance.js';
 import { angleDiff, clamp, lerp } from '../../utils/math.js';
@@ -282,15 +291,19 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     return Math.abs(playerHoverY - centerY) > safeHalfHeight + AVOIDANCE_VERTICAL_EXTRA_CLEARANCE;
   };
 
-  PlayerSystem.prototype.getAvoidanceDiscSource = function getAvoidanceDiscSource(collider) {
-    if (Array.isArray(collider?.playerAvoidanceDiscs) && collider.playerAvoidanceDiscs.length > 0) {
-      return collider.playerAvoidanceDiscs;
+  PlayerSystem.prototype.getAvoidanceAssistGate = function getAvoidanceAssistGate(rawMoveDir, speed) {
+    const state = this.ensureAvoidanceState();
+    if (rawMoveDir.lengthSq() <= 0.000001) {
+      state.intentShiftTimer = 0;
+      return 'no-input';
     }
-    if (Array.isArray(collider?.playerCollisionDiscs) && collider.playerCollisionDiscs.length > 0) {
-      return collider.playerCollisionDiscs;
+    if (speed < PLAYER_AVOIDANCE.minAssistSpeed) {
+      state.intentShiftTimer = 0;
+      return 'low-speed';
     }
-    return null;
+    return 'active';
   };
+
 
   PlayerSystem.prototype.collectAvoidanceProxies = function collectAvoidanceProxies(playerHoverY, candidates, out = AVOIDANCE_PROXIES) {
     out.length = 0;
@@ -298,7 +311,9 @@ export function installPlayerMovementRuntime(PlayerSystem) {
       const collider = candidates[i];
       if (!collider || collider.blocksPlayer === false) continue;
       this.game.world.refreshCollider?.(collider);
-      const discs = this.getAvoidanceDiscSource(collider);
+      const discs = Array.isArray(collider?.playerAvoidanceDiscs) && collider.playerAvoidanceDiscs.length > 0
+        ? collider.playerAvoidanceDiscs
+        : null;
       const matrixWorld = this.getColliderMatrixWorld?.(collider) ?? collider.matrixWorldStatic ?? collider.source?.matrixWorld ?? null;
       const padding = Math.max(0, Number(collider?.avoidancePadding) || 0);
       if (Array.isArray(discs) && discs.length > 0) {
@@ -334,7 +349,7 @@ export function installPlayerMovementRuntime(PlayerSystem) {
         x: collider.x ?? 0,
         y: collider.y ?? 0,
         z: collider.z ?? 0,
-        radius: Math.max(0.05, Number(collider?.radius ?? collider?.gridRadius ?? 0.05) || 0.05) + padding,
+        radius: Math.max(0.05, Number(collider?.radius ?? 0.05) || 0.05) + padding,
         halfHeight,
         collider,
       });
@@ -456,14 +471,6 @@ export function installPlayerMovementRuntime(PlayerSystem) {
 
   PlayerSystem.prototype.shouldReplanAvoidance = function shouldReplanAvoidance(player, rawMoveDir, speed, dt) {
     const state = this.ensureAvoidanceState();
-    if (rawMoveDir.lengthSq() <= 0.000001) {
-      state.intentShiftTimer = 0;
-      return false;
-    }
-    if (speed < PLAYER_AVOIDANCE.minAssistSpeed) {
-      state.intentShiftTimer = 0;
-      return false;
-    }
     if (state.mode !== 'STRAIGHT') {
       state.intentShiftTimer = 0;
       return false;
@@ -507,8 +514,9 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     this.updateFilteredIntent(rawMoveDir, dt);
 
     ASSISTED_MOVE.copy(rawMoveDir);
-    if (rawMoveDir.lengthSq() <= 0.000001) {
-      this.clearAvoidancePlan();
+    const assistGate = this.getAvoidanceAssistGate(rawMoveDir, speed);
+    if (assistGate !== 'active') {
+      this.clearAvoidancePlan(assistGate === 'low-speed' ? 'immediate' : '');
       return ASSISTED_MOVE;
     }
 
@@ -557,7 +565,11 @@ export function installPlayerMovementRuntime(PlayerSystem) {
 
   PlayerSystem.prototype.updateAvoidancePostMove = function updateAvoidancePostMove(player, moveResult, attemptedSpeed) {
     const state = this.ensureAvoidanceState();
-    if (!state.plan || state.mode !== 'STRAIGHT' || attemptedSpeed < PLAYER_AVOIDANCE.minAssistSpeed) {
+    if (attemptedSpeed < PLAYER_AVOIDANCE.minAssistSpeed) {
+      this.clearAvoidancePlan('immediate');
+      return;
+    }
+    if (!state.plan || state.mode !== 'STRAIGHT') {
       state.blockedFrames = 0;
       return;
     }

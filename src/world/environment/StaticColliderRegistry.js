@@ -1,10 +1,12 @@
 /**
  * Responsibility:
  * - 静的コライダ登録と astral gel 領域問い合わせを一元管理する。
+ * - collision / avoidance / debug が共有する player collider shape の bake 結果を保持する。
  *
  * Rules:
  * - 静的ワールド障害物の単一の truth source であり続ける。
  * - Combat 側はこの登録結果を読むだけで、独自の障害物配列を持たない。
+ * - playerAvoidanceDiscs はここで正規化・自動生成し、移動側は焼き込み済みの結果だけを読む。
  */
 import {
   ASTRAL_FIELD_WORLD,
@@ -20,6 +22,7 @@ import {
   THREE,
 } from '../EnvironmentBuilderShared.js';
 import { SpatialHashGrid2D } from '../../spatial/SpatialHashGrid2D.js';
+import { buildAutoPlayerAvoidanceDiscs, clonePlayerAvoidanceDiscs } from './PlayerColliderShapeShared.js';
 
 const STATIC_COLLIDER_QUERY_RESULTS = [];
 const STATIC_COLLIDER_AXIS_X = new THREE.Vector3();
@@ -49,21 +52,7 @@ function compactCandidates(candidates, predicate) {
 }
 
 function normalizePlayerCollisionDiscs(discs) {
-  if (!Array.isArray(discs) || discs.length === 0) return null;
-  const normalized = [];
-  for (let i = 0; i < discs.length; i += 1) {
-    const disc = discs[i];
-    if (!disc) continue;
-    const radius = Math.max(0.01, Number(disc.radius) || 0.01);
-    normalized.push({
-      x: Number(disc.x) || 0,
-      y: Number(disc.y) || 0,
-      z: Number(disc.z) || 0,
-      radius,
-      halfHeight: Math.max(0.02, Number(disc.halfHeight ?? radius) || radius),
-    });
-  }
-  return normalized.length > 0 ? normalized : null;
+  return clonePlayerAvoidanceDiscs(discs);
 }
 
 function getCompoundGridRadius(discs) {
@@ -112,7 +101,9 @@ export function installStaticColliderRegistry(EnvironmentBuilder) {
       collider.blocksProjectiles = collider.blocksProjectiles !== false;
       collider.minimapObstacle = collider.minimapObstacle !== false && collider.blocksPlayer !== false;
       collider.playerCollisionDiscs = normalizePlayerCollisionDiscs(collider.playerCollisionDiscs);
-      collider.playerAvoidanceDiscs = normalizePlayerCollisionDiscs(collider.playerAvoidanceDiscs);
+      collider.playerAvoidanceDiscs = Array.isArray(collider.playerAvoidanceDiscs) && collider.playerAvoidanceDiscs.length > 0
+        ? clonePlayerAvoidanceDiscs(collider.playerAvoidanceDiscs, collider.radius, collider.halfHeight ?? collider.verticalRadius ?? null)
+        : buildAutoPlayerAvoidanceDiscs(collider);
 
       if (collider.surfaceNormalLocal) {
         if (!collider.worldQuaternion && source?.getWorldQuaternion) {

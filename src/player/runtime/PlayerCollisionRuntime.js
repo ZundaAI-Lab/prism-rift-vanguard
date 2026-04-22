@@ -1,5 +1,14 @@
+/**
+ * Responsibility:
+ * - player と静的ワールド障害物の実衝突解決を担当する。
+ *
+ * Rules:
+ * - collider shape 判定は shared helper を truth source とし、移動/debug と別解釈を持たない。
+ * - 実際の押し戻しは shape ごとの専用解決器で行う。
+ */
 import * as THREE from 'three';
 import { PLAYER_BASE } from '../../data/balance.js';
+import { getPlayerColliderModel } from '../../world/environment/PlayerColliderShapeShared.js';
 
 const COLLIDER_WORLD = new THREE.Vector3();
 const COLLISION_DELTA = new THREE.Vector2();
@@ -22,12 +31,8 @@ export function installPlayerCollisionRuntime(PlayerSystem) {
     return (collider?.y ?? 0) + colliderHalfHeight;
   };
 
-  PlayerSystem.prototype.getPlayerCollisionModel = function getPlayerCollisionModel(collider) {
-    if (collider?.playerCollisionModel) return collider.playerCollisionModel;
-    if (Array.isArray(collider?.playerCollisionDiscs) && collider.playerCollisionDiscs.length > 0) return 'compound';
-    if (Number.isFinite(collider?.ringRadius) && Number.isFinite(collider?.tubeRadius)) return 'ring';
-    if (collider?.localHalfExtents) return 'obb';
-    return 'disc';
+  PlayerSystem.prototype.getPlayerCollisionModel = function getPlayerCollisionModelForRuntime(collider) {
+    return getPlayerColliderModel(collider);
   };
 
   PlayerSystem.prototype.getColliderMatrixWorld = function getColliderMatrixWorld(collider) {

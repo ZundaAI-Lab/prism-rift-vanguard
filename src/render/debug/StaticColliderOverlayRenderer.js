@@ -58,6 +58,7 @@ function createStaticColliderDebugMesh(geometry, material, shape) {
  * - 入力はデバッグ表示用 entry のみ受け取り、game / world へ直接依存しない。
  * - shared geometry / material はここでのみ所有し、呼び出し側へ漏らさない。
  * - 表示対象の増減は key ベースで差分同期する。
+ * - 静的コライダ debug の mesh 生成責務は DebugSystem から分離し、この renderer が一元管理する。
  */
 export class StaticColliderOverlayRenderer {
   constructor(parentGroup) {

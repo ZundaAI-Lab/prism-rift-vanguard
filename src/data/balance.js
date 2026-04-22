@@ -63,6 +63,12 @@ export const PLAYER_AVOIDANCE = {
   manualExitYawRate: 0.95,
   emergencySpeedDropRatio: 0.62,
   emergencyBlockedFrames: 2,
+  // 回避 blocked は片軸の停止ではなく、意図方向への前進不足で判定する。
+  blockedMinForwardDistance: 0.12,
+  blockedMinForwardRatio: 0.35,
+  // 回避 target は clamp 後の有効性も検査し、前方距離や到達距離が潰れた候補を捨てる。
+  minClampedForwardDistance: 1.0,
+  minClampedPlanDistance: 1.2,
   sideStickBias: 0.18,
   minRiskToPlan: 0.085,
   targetPointReachRadius: 1.8,

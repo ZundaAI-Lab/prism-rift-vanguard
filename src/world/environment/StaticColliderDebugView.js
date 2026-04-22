@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getPlayerColliderModel } from './PlayerColliderShapeShared.js';
 
 const DEBUG_WORLD_POINT = new THREE.Vector3();
 
@@ -9,6 +10,7 @@ const DEBUG_WORLD_POINT = new THREE.Vector3();
  * Rules:
  * - world 側の内部表現をそのまま描画側へ渡さず、必要最小限へ射影する。
  * - 表示不要なコライダはここで除外する。
+ * - shape 判定は shared helper を使い、collision / avoidance と解釈をずらさない。
  */
 export function buildStaticColliderDebugEntries(world) {
   const colliders = world?.staticColliders;
@@ -38,11 +40,7 @@ export function toStaticColliderDebugEntries(collider) {
 }
 
 function getDebugShapeModel(collider) {
-  if (collider?.playerCollisionModel) return collider.playerCollisionModel;
-  if (Array.isArray(collider?.playerCollisionDiscs) && collider.playerCollisionDiscs.length > 0) return 'compound';
-  if (Number.isFinite(collider?.ringRadius) && Number.isFinite(collider?.tubeRadius)) return 'ring';
-  if (collider?.localHalfExtents) return 'obb';
-  return 'disc';
+  return getPlayerColliderModel(collider);
 }
 
 function createBaseEntry(collider, key) {

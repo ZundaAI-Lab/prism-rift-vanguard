@@ -18,6 +18,9 @@ const AVOIDANCE_CANDIDATES = [];
 const AVOIDANCE_PROXIES = [];
 const AVOIDANCE_VERTICAL_PASS_OVER_CLEARANCE = 0.2;
 const AVOIDANCE_VERTICAL_EXTRA_CLEARANCE = 2.8;
+const PLAYER_FIELD_COLLISION_INFO = { collided: false, pushX: 0, pushZ: 0, hitCount: 0 };
+const PLAYER_AXIS_COLLISION_INFO = { collided: false, pushX: 0, pushZ: 0, hitCount: 0 };
+const WALL_SLIDE_EPSILON = 0.000001;
 
 function didReachAxisTarget(currentValue, targetValue) {
   return Math.abs(currentValue - targetValue) <= AXIS_MOVE_EPSILON;
@@ -98,13 +101,21 @@ export function installPlayerMovementRuntime(PlayerSystem) {
 
     player.x = targetX;
     player.z = targetZ;
-    this.resolveFieldCollisions(player);
+    const fullCollision = this.resolveFieldCollisions(player, PLAYER_FIELD_COLLISION_INFO);
     clampPointToPlayerTravelBounds(player);
 
-    const reachedFullTarget = didReachAxisTarget(player.x, targetX)
-      && didReachAxisTarget(player.z, targetZ);
+    const fullX = player.x;
+    const fullZ = player.z;
+    const reachedFullTarget = didReachAxisTarget(fullX, targetX)
+      && didReachAxisTarget(fullZ, targetZ);
     if (reachedFullTarget) {
-      return { movedX: true, movedZ: true };
+      return {
+        movedX: true,
+        movedZ: true,
+        collided: !!fullCollision?.collided,
+        collisionPushX: fullCollision?.pushX ?? 0,
+        collisionPushZ: fullCollision?.pushZ ?? 0,
+      };
     }
 
     player.x = startX;
@@ -114,9 +125,12 @@ export function installPlayerMovementRuntime(PlayerSystem) {
       ? [['x', deltaX], ['z', deltaZ]]
       : [['z', deltaZ], ['x', deltaX]];
 
-    const result = {
+    const axisResult = {
       movedX: Math.abs(deltaX) <= AXIS_MOVE_EPSILON,
       movedZ: Math.abs(deltaZ) <= AXIS_MOVE_EPSILON,
+      collided: false,
+      collisionPushX: 0,
+      collisionPushZ: 0,
     };
 
     for (let i = 0; i < axisOrder.length; i += 1) {
@@ -132,19 +146,66 @@ export function installPlayerMovementRuntime(PlayerSystem) {
         player.z = targetValue;
       }
 
-      this.resolveFieldCollisions(player);
+      const axisCollision = this.resolveFieldCollisions(player, PLAYER_AXIS_COLLISION_INFO);
       clampPointToPlayerTravelBounds(player);
+      if (axisCollision?.collided) {
+        axisResult.collided = true;
+        axisResult.collisionPushX += axisCollision.pushX ?? 0;
+        axisResult.collisionPushZ += axisCollision.pushZ ?? 0;
+      }
 
       const resolvedValue = axis === 'x' ? player.x : player.z;
       const reachedTarget = didReachAxisTarget(resolvedValue, targetValue);
       if (axis === 'x') {
-        result.movedX = reachedTarget;
+        axisResult.movedX = reachedTarget;
       } else {
-        result.movedZ = reachedTarget;
+        axisResult.movedZ = reachedTarget;
       }
     }
 
-    return result;
+    const fullDispX = fullX - startX;
+    const fullDispZ = fullZ - startZ;
+    const axisDispX = player.x - startX;
+    const axisDispZ = player.z - startZ;
+    const attemptDir = normalize2(deltaX, deltaZ, 0, 1);
+    const fullForward = fullDispX * attemptDir.x + fullDispZ * attemptDir.z;
+    const axisForward = axisDispX * attemptDir.x + axisDispZ * attemptDir.z;
+    const fullDistanceSq = lengthSq2(fullDispX, fullDispZ);
+    const axisDistanceSq = lengthSq2(axisDispX, axisDispZ);
+    const preferFullResolvedMove = (fullForward > axisForward + 0.02)
+      || (Math.abs(fullForward - axisForward) <= 0.02 && fullDistanceSq > axisDistanceSq + 0.02);
+
+    if (preferFullResolvedMove) {
+      player.x = fullX;
+      player.z = fullZ;
+      return {
+        movedX: didReachAxisTarget(fullX, targetX),
+        movedZ: didReachAxisTarget(fullZ, targetZ),
+        collided: !!fullCollision?.collided,
+        collisionPushX: fullCollision?.pushX ?? 0,
+        collisionPushZ: fullCollision?.pushZ ?? 0,
+      };
+    }
+
+    return axisResult;
+  };
+
+  PlayerSystem.prototype.applyWallSlideVelocity = function applyWallSlideVelocity(player, moveResult) {
+    if (!moveResult?.collided) return;
+
+    const pushX = Number(moveResult.collisionPushX) || 0;
+    const pushZ = Number(moveResult.collisionPushZ) || 0;
+    const pushLenSq = lengthSq2(pushX, pushZ);
+    if (pushLenSq <= WALL_SLIDE_EPSILON) return;
+
+    const invPushLen = 1 / Math.sqrt(pushLenSq);
+    const normalX = pushX * invPushLen;
+    const normalZ = pushZ * invPushLen;
+    const inwardSpeed = player.vx * normalX + player.vz * normalZ;
+    if (inwardSpeed >= 0) return;
+
+    player.vx -= normalX * inwardSpeed;
+    player.vz -= normalZ * inwardSpeed;
   };
 
   PlayerSystem.prototype.ensureAvoidanceState = function ensureAvoidanceState() {
@@ -564,10 +625,11 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     player.vz *= drag;
 
     const moveResult = this.movePlayerWithFieldSlide(player, player.vx * dt, player.vz * dt);
-    if (!moveResult.movedX) {
+    this.applyWallSlideVelocity(player, moveResult);
+    if (!moveResult.movedX && Math.abs(player.vx) <= AXIS_MOVE_EPSILON) {
       player.vx = 0;
     }
-    if (!moveResult.movedZ) {
+    if (!moveResult.movedZ && Math.abs(player.vz) <= AXIS_MOVE_EPSILON) {
       player.vz = 0;
     }
     this.updateAvoidancePostMove(player, moveResult, Math.hypot(player.vx, player.vz));

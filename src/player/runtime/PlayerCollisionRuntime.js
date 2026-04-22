@@ -13,6 +13,7 @@ const PLAYER_WORLD_PUSH = new THREE.Vector3();
 const PLAYER_COLLIDER_MATRIX_INV = new THREE.Matrix4();
 const PLAYER_COLLIDER_QUATERNION = new THREE.Quaternion();
 const PLAYER_SUB_COLLIDER_WORLD = new THREE.Vector3();
+const PLAYER_FIELD_COLLISION_EPSILON = 0.000001;
 
 export function installPlayerCollisionRuntime(PlayerSystem) {
   PlayerSystem.prototype.getColliderTopY = function getColliderTopY(collider) {
@@ -221,11 +222,18 @@ export function installPlayerCollisionRuntime(PlayerSystem) {
     );
   };
 
-  PlayerSystem.prototype.resolveFieldCollisions = function resolveFieldCollisions(player) {
+  PlayerSystem.prototype.resolveFieldCollisions = function resolveFieldCollisions(player, out = null) {
+    if (out) {
+      out.collided = false;
+      out.pushX = 0;
+      out.pushZ = 0;
+      out.hitCount = 0;
+    }
+
     const world = this.game.world;
     const playerRadius = PLAYER_BASE.collisionRadius;
     const colliders = world?.collectPlayerCollisionCandidates?.(player.x, player.z, playerRadius, FIELD_COLLIDER_QUERY_RESULTS);
-    if (!Array.isArray(colliders) || colliders.length === 0) return;
+    if (!Array.isArray(colliders) || colliders.length === 0) return out;
 
     const perf = this.game.debug?.getPerformanceMonitor?.();
     perf?.count?.('staticQueries', 1);
@@ -238,7 +246,19 @@ export function installPlayerCollisionRuntime(PlayerSystem) {
       const collider = colliders[i];
       if (!collider || collider.blocksPlayer === false) continue;
       world.refreshCollider?.(collider);
-      this.resolveSingleFieldCollider(player, collider, playerHoverY, playerRadius);
+      const beforeX = player.x;
+      const beforeZ = player.z;
+      const collided = this.resolveSingleFieldCollider(player, collider, playerHoverY, playerRadius);
+      if (!out || !collided) continue;
+      const pushX = player.x - beforeX;
+      const pushZ = player.z - beforeZ;
+      if ((pushX * pushX + pushZ * pushZ) <= PLAYER_FIELD_COLLISION_EPSILON) continue;
+      out.collided = true;
+      out.pushX += pushX;
+      out.pushZ += pushZ;
+      out.hitCount += 1;
     }
+
+    return out;
   };
 }

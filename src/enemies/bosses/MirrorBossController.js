@@ -58,7 +58,7 @@ export function installMirrorBossController(BossSystem) {
 
   BossSystem.prototype.setMirrorBossVisibility = function setMirrorBossVisibility(enemy, visible) {
       const state = enemy.mirrorBossState;
-      enemy.mesh.visible = visible;
+      this.game?.enemies?.setEnemyVisibility?.(enemy, visible);
       if (state) state.warpHidden = !visible;
     }
 

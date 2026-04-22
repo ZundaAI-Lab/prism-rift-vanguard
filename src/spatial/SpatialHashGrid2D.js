@@ -53,6 +53,72 @@ export class SpatialHashGrid2D {
     }
   }
 
+  insertTrackedAabb(item, minX, maxX, minZ, maxZ) {
+    if (!item) return false;
+    const startX = this.toCell(Math.min(minX, maxX));
+    const endX = this.toCell(Math.max(minX, maxX));
+    const startZ = this.toCell(Math.min(minZ, maxZ));
+    const endZ = this.toCell(Math.max(minZ, maxZ));
+
+    for (let cellZ = startZ; cellZ <= endZ; cellZ += 1) {
+      for (let cellX = startX; cellX <= endX; cellX += 1) {
+        const key = this.cellKey(cellX, cellZ);
+        let bucket = this.cells.get(key);
+        if (!bucket) {
+          bucket = [];
+          this.cells.set(key, bucket);
+        }
+        bucket.push(item);
+      }
+    }
+
+    item.spatialCellMinX = startX;
+    item.spatialCellMaxX = endX;
+    item.spatialCellMinZ = startZ;
+    item.spatialCellMaxZ = endZ;
+    item.spatialIndexed = true;
+    return true;
+  }
+
+  removeTracked(item) {
+    if (!item?.spatialIndexed) return false;
+
+    for (let cellZ = item.spatialCellMinZ; cellZ <= item.spatialCellMaxZ; cellZ += 1) {
+      for (let cellX = item.spatialCellMinX; cellX <= item.spatialCellMaxX; cellX += 1) {
+        const key = this.cellKey(cellX, cellZ);
+        const bucket = this.cells.get(key);
+        if (!bucket) continue;
+        const index = bucket.indexOf(item);
+        if (index >= 0) bucket.splice(index, 1);
+        if (bucket.length === 0) this.cells.delete(key);
+      }
+    }
+
+    item.spatialIndexed = false;
+    return true;
+  }
+
+  updateTrackedAabb(item, minX, maxX, minZ, maxZ) {
+    if (!item) return false;
+    const nextMinCellX = this.toCell(Math.min(minX, maxX));
+    const nextMaxCellX = this.toCell(Math.max(minX, maxX));
+    const nextMinCellZ = this.toCell(Math.min(minZ, maxZ));
+    const nextMaxCellZ = this.toCell(Math.max(minZ, maxZ));
+
+    if (
+      item.spatialIndexed
+      && item.spatialCellMinX === nextMinCellX
+      && item.spatialCellMaxX === nextMaxCellX
+      && item.spatialCellMinZ === nextMinCellZ
+      && item.spatialCellMaxZ === nextMaxCellZ
+    ) {
+      return false;
+    }
+
+    if (item.spatialIndexed) this.removeTracked(item);
+    return this.insertTrackedAabb(item, minX, maxX, minZ, maxZ);
+  }
+
   insertCircle(x, z, radius, item) {
     const r = Math.max(0, radius || 0);
     this.insertAabb(x - r, x + r, z - r, z + r, item);

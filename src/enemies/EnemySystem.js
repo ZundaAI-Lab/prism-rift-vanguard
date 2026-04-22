@@ -56,6 +56,23 @@ export class EnemySystem {
     const availableCount = Math.min(mission.enemies.length, Math.max(2, waveNumber));
     return randChoice(mission.enemies.slice(0, availableCount));
   }
+
+  setEnemyVisibility(enemy, visible) {
+    if (!enemy?.mesh) return false;
+    const nextVisible = !!visible;
+    if (enemy.mesh.visible === nextVisible) return nextVisible;
+    enemy.mesh.visible = nextVisible;
+    if (nextVisible) {
+      this.registerEnemyFrameEntry(enemy);
+      this.registerEnemySpatialEntry(enemy);
+      this.syncEnemyFrameEntry(enemy);
+      this.syncEnemySpatialEntry(enemy);
+    } else {
+      this.unregisterEnemySpatialEntry(enemy);
+      this.unregisterEnemyFrameEntry(enemy);
+    }
+    return nextVisible;
+  }
 }
 
 installEnemySpawnRuntime(EnemySystem);

@@ -29,8 +29,8 @@ export function installEnemySpawnRuntime(EnemySystem) {
     if (this.shouldPlaySpawnIntro(enemy)) this.beginSpawnIntro(enemy);
     if (!enemy.def.isBoss) this.game.audio?.playSfx('enemySpawn', { cooldownMs: 70, worldPosition: enemy.mesh.position });
     this.game.missionAchievements?.registerEnemySpawned?.(enemy);
-    this.markSpatialDirty();
-    this.markEnemyFrameDirty();
+    this.registerEnemyFrameEntry(enemy);
+    this.registerEnemySpatialEntry(enemy);
     return enemy;
   }
 

@@ -97,6 +97,19 @@ export class EnemyFactory {
       hitShakeTimer: 0,
       hitShakeStrength: 0,
       hitShakePhase: 0,
+      frameIndex: -1,
+      frameActive: false,
+      enemyFrameToken: 0,
+      spatialRadius: 0,
+      spatialMinX: 0,
+      spatialMaxX: 0,
+      spatialMinZ: 0,
+      spatialMaxZ: 0,
+      spatialCellMinX: 0,
+      spatialCellMaxX: 0,
+      spatialCellMinZ: 0,
+      spatialCellMaxZ: 0,
+      spatialIndexed: false,
     };
   }
 

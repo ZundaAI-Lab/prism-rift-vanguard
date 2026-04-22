@@ -34,10 +34,16 @@ export function installEnemyCombatRuntime(EnemySystem) {
     const playerMesh = this.game.store.playerMesh;
     if (!playerMesh) return;
 
+    this.beginEnemyFrame();
+
     for (let i = this.game.store.enemies.length - 1; i >= 0; i -= 1) {
       const enemy = this.game.store.enemies[i];
       if (!enemy.alive) continue;
-      if (this.updateSpawnIntro(enemy, dt)) continue;
+      if (this.updateSpawnIntro(enemy, dt)) {
+        this.syncEnemyFrameEntry(enemy);
+        this.syncEnemySpatialEntry(enemy);
+        continue;
+      }
       enemy.age += dt;
       enemy.cooldown -= dt;
       enemy.blinkTimer -= dt;
@@ -51,6 +57,8 @@ export function installEnemyCombatRuntime(EnemySystem) {
         enemy.mesh.lookAt(playerMesh.position.x, enemy.mesh.position.y, playerMesh.position.z);
         enemy.mesh.rotation.z += Math.sin(enemy.age * 2.4) * 0.003;
         this.applyDamageShake(enemy);
+        this.syncEnemyFrameEntry(enemy);
+        this.syncEnemySpatialEntry(enemy);
         continue;
       }
 
@@ -68,12 +76,9 @@ export function installEnemyCombatRuntime(EnemySystem) {
       else this.bossSystem.updateBoss(enemy, dt);
 
       this.applyDamageShake(enemy);
+      this.syncEnemyFrameEntry(enemy);
+      this.syncEnemySpatialEntry(enemy);
     }
-
-    if (this.enemySpatialGrid || this.game.store.enemies.length > 0 || this.enemySpatialDirty !== false) {
-      this.rebuildEnemySpatialIndex();
-    }
-    this.rebuildEnemyFrameView();
   }
 
   EnemySystem.prototype.updateRegularMovement = function updateRegularMovement(enemy, dt) {

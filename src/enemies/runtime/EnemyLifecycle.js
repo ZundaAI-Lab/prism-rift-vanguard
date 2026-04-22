@@ -61,9 +61,9 @@ export function installEnemyLifecycle(EnemySystem) {
   EnemySystem.prototype.removeEnemy = function removeEnemy(enemy) {
     if (!enemy?.alive) return false;
     enemy.alive = false;
+    this.unregisterEnemySpatialEntry(enemy);
+    this.unregisterEnemyFrameEntry(enemy);
     removeFromArray(this.game.store.enemies, enemy);
-    this.markSpatialDirty();
-    this.markEnemyFrameDirty();
     detachAndDispose(enemy.mesh);
     return true;
   }

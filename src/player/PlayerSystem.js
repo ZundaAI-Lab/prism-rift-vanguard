@@ -1,10 +1,11 @@
 import { PLAYER_BASE } from '../data/balance.js';
 import { installPlayerCollisionRuntime } from './runtime/PlayerCollisionRuntime.js';
-import { installPlayerFeedbackRuntime } from './runtime/PlayerFeedbackRuntime.js';
-import { installPlayerGameOverRuntime } from './runtime/PlayerGameOverRuntime.js';
-import { installPlayerClearCinematicRuntime } from './runtime/PlayerClearCinematicRuntime.js';
-import { installPlayerMovementRuntime } from './runtime/PlayerMovementRuntime.js';
+import { installPlayerMotionRuntime } from './runtime/PlayerMotionRuntime.js';
+import { installPlayerAvoidanceRuntime } from './runtime/PlayerAvoidanceRuntime.js';
+import { installPlayerViewRuntime } from './runtime/PlayerViewRuntime.js';
+import { installPlayerSequenceRuntime } from './runtime/PlayerSequenceRuntime.js';
 import { installPlayerDamageRuntime } from './runtime/PlayerDamageRuntime.js';
+import { installPlayerFrameRuntime } from './runtime/PlayerFrameRuntime.js';
 
 /**
  * Responsibility:
@@ -16,8 +17,11 @@ import { installPlayerDamageRuntime } from './runtime/PlayerDamageRuntime.js';
  *
  * 更新ルール:
  * - PlayerSystem.js には constructor / reset / runtime install だけを置く。
- * - 通常移動は PlayerMovementRuntime、被弾は PlayerDamageRuntime、演出は PlayerFeedbackRuntime か
- *   PlayerGameOverRuntime / PlayerClearCinematicRuntime に追加する。
+ * - playing 中の update 順制御は PlayerFrameRuntime、通常移動は PlayerMotionRuntime、
+ *   回避アシストは PlayerAvoidanceRuntime、見た目は PlayerViewRuntime、
+ *   clear/gameover 系は PlayerSequenceRuntime、被弾は PlayerDamageRuntime に追加する。
+ * - PlayerCollisionRuntime は実衝突解決の truth source として維持し、
+ *   PlayerMotionRuntime に押し戻しロジック本体を複製しない。
  * - プレイヤー移動範囲の規約は player/shared/PlayerTravelBounds.js を正として扱い、
  *   utils 側にプレイヤー専用ルールを増やさない。
  */
@@ -65,8 +69,9 @@ export class PlayerSystem {
 }
 
 installPlayerCollisionRuntime(PlayerSystem);
-installPlayerFeedbackRuntime(PlayerSystem);
-installPlayerGameOverRuntime(PlayerSystem);
-installPlayerClearCinematicRuntime(PlayerSystem);
-installPlayerMovementRuntime(PlayerSystem);
+installPlayerMotionRuntime(PlayerSystem);
+installPlayerAvoidanceRuntime(PlayerSystem);
+installPlayerViewRuntime(PlayerSystem);
+installPlayerSequenceRuntime(PlayerSystem);
 installPlayerDamageRuntime(PlayerSystem);
+installPlayerFrameRuntime(PlayerSystem);

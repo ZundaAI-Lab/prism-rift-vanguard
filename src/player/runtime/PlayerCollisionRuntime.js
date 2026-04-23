@@ -5,15 +5,17 @@
  * Rules:
  * - collider shape 判定は shared helper を truth source とし、移動/debug と別解釈を持たない。
  * - 実際の押し戻しは shape ごとの専用解決器で行う。
+ * - 縦方向の通過条件は player/shared/PlayerVerticalOverlapGate.js を唯一の正とし、
+ *   回避 planner と別の閾値を持ち込まない。
  */
 import * as THREE from 'three';
 import { PLAYER_BASE } from '../../data/balance.js';
 import { getPlayerColliderModel } from '../../world/environment/PlayerColliderShapeShared.js';
+import { shouldSkipPlayerVerticalOverlap } from '../shared/PlayerVerticalOverlapGate.js';
 
 const COLLIDER_WORLD = new THREE.Vector3();
 const COLLISION_DELTA = new THREE.Vector2();
 const FIELD_COLLIDER_QUERY_RESULTS = [];
-const PLAYER_PASS_OVER_CLEARANCE = 0.2;
 const PLAYER_WORLD_POINT = new THREE.Vector3();
 const PLAYER_LOCAL_POINT = new THREE.Vector3();
 const PLAYER_LOCAL_CLAMP = new THREE.Vector3();
@@ -46,9 +48,7 @@ export function installPlayerCollisionRuntime(PlayerSystem) {
   };
 
   PlayerSystem.prototype.shouldSkipVerticalCollision = function shouldSkipVerticalCollision(playerHoverY, centerY, halfHeight) {
-    const safeHalfHeight = Math.max(0.02, Number(halfHeight) || 0.02);
-    if (playerHoverY >= centerY + safeHalfHeight + PLAYER_PASS_OVER_CLEARANCE) return true;
-    return Math.abs(playerHoverY - centerY) > safeHalfHeight + 2.8;
+    return shouldSkipPlayerVerticalOverlap(playerHoverY, centerY, halfHeight);
   };
 
   PlayerSystem.prototype.pushPlayerOutOfDisc = function pushPlayerOutOfDisc(player, centerX, centerY, centerZ, radius, halfHeight, playerHoverY, playerRadius) {

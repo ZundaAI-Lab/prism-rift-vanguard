@@ -64,7 +64,8 @@ export const PLAYER_AVOIDANCE = {
   straightExitYawRate: 0.45,
   manualEnterYawRate: 1.25,
   manualExitYawRate: 0.95,
-  emergencySpeedDropRatio: 0.62,
+  // 更新ルール:
+  // - stale plan の再 plan 判定は speed drop を見ず、blocked / intent shift / corridor / expiry に限定する。
   emergencyBlockedFrames: 2,
   // 回避 blocked は片軸の停止ではなく、意図方向への前進不足で判定する。
   blockedMinForwardDistance: 0.12,

@@ -1,41 +1,25 @@
 /**
  * Responsibility:
- * - player の移動、壁すべり、回避アシストの最終適用を担当する。
+ * - 自動回避アシストの状態機械、planner、assist 出力制御を担当する。
  *
  * Rules:
- * - 回避プランナ本体は disc ベースの corridor 評価器のまま維持する。
- * - shape ごとの差は world 側で bake 済みの playerAvoidanceDiscs に寄せ、このモジュールはそれを world 展開して使うだけにする。
- * - 回避 plan の保持条件と assist 適用条件は同じ gate を共有し、低速や無入力では stale plan を残さない。
- * - 自動回避は入力補助に限定し、入力変更後の短い抑止期間中は一切介入しない。
- * - 回避出力と速度ベクトルは常に現在入力の半平面内に制限し、入力に反する進行を残さない。
+ * - 自動回避は入力補助に限定し、入力変更や急旋回直後は介入しない。
+ * - 回避 plan の保持条件と assist 適用条件は同じ gate を共有し、stale plan を残さない。
+ * - planner の speed は前フレーム速度ではなく motionIntent.commandSpeed を正として扱う。
+ * - blocked 判定は衝突後速度を見ず、attempted/actual の前進量比較だけで行う。
+ * - camera yaw は reset 直後の最初の 1 サンプルでは prime のみ行い、誤 TURNING 遷移を起こさない。
+ * - shape ごとの差は world 側で bake 済みの playerAvoidanceDiscs に寄せ、この runtime は world 展開だけを行う。
+ * - 縦方向の proxy 無視条件は PlayerCollisionRuntime と同じ shared gate を使う。
  */
 import * as THREE from 'three';
 import { PLAYER_AVOIDANCE, PLAYER_BASE } from '../../data/balance.js';
 import { angleDiff, clamp, lerp } from '../../utils/math.js';
-import { clampPointToPlayerTravelBounds } from '../shared/PlayerTravelBounds.js';
+import { shouldSkipPlayerVerticalOverlap } from '../shared/PlayerVerticalOverlapGate.js';
 
-const CAMERA_MOVE_FORWARD = new THREE.Vector3();
-const CAMERA_MOVE_RIGHT = new THREE.Vector3();
-const MOVE = new THREE.Vector3();
 const ASSISTED_MOVE = new THREE.Vector3();
-const UP = new THREE.Vector3(0, 1, 0);
 const AVOIDANCE_PROXY_WORLD = new THREE.Vector3();
-const LOOK_YAW_SENSITIVITY = 0.0024;
-const LOOK_PITCH_SENSITIVITY = 0.0028;
-const DEFAULT_MOUSE_SENSITIVITY = 1;
-const PLASMA_READY_BURST_OFFSET = new THREE.Vector3(0, 0.14, 0);
-const AXIS_MOVE_EPSILON = 0.0001;
 const AVOIDANCE_CANDIDATES = [];
 const AVOIDANCE_PROXIES = [];
-const AVOIDANCE_VERTICAL_PASS_OVER_CLEARANCE = 0.2;
-const AVOIDANCE_VERTICAL_EXTRA_CLEARANCE = 2.8;
-const PLAYER_FIELD_COLLISION_INFO = { collided: false, pushX: 0, pushZ: 0, hitCount: 0 };
-const PLAYER_AXIS_COLLISION_INFO = { collided: false, pushX: 0, pushZ: 0, hitCount: 0 };
-const WALL_SLIDE_EPSILON = 0.000001;
-
-function didReachAxisTarget(currentValue, targetValue) {
-  return Math.abs(currentValue - targetValue) <= AXIS_MOVE_EPSILON;
-}
 
 function clamp01(value) {
   return clamp(value, 0, 1);
@@ -102,6 +86,7 @@ function makeAvoidanceState() {
     time: 0,
     mode: 'STRAIGHT',
     lastCameraHeading: 0,
+    cameraHeadingPrimed: false,
     cameraYawRate: 0,
     lastTurningAt: -Infinity,
     lastStraightAt: 0,
@@ -117,134 +102,7 @@ function makeAvoidanceState() {
   };
 }
 
-export function installPlayerMovementRuntime(PlayerSystem) {
-  PlayerSystem.prototype.movePlayerWithFieldSlide = function movePlayerWithFieldSlide(player, deltaX, deltaZ) {
-    const startX = player.x;
-    const startZ = player.z;
-    const targetX = startX + deltaX;
-    const targetZ = startZ + deltaZ;
-
-    player.x = targetX;
-    player.z = targetZ;
-    const fullCollision = this.resolveFieldCollisions(player, PLAYER_FIELD_COLLISION_INFO);
-    clampPointToPlayerTravelBounds(player);
-
-    const fullX = player.x;
-    const fullZ = player.z;
-    const reachedFullTarget = didReachAxisTarget(fullX, targetX)
-      && didReachAxisTarget(fullZ, targetZ);
-    if (reachedFullTarget) {
-      return {
-        movedX: true,
-        movedZ: true,
-        collided: !!fullCollision?.collided,
-        collisionPushX: fullCollision?.pushX ?? 0,
-        collisionPushZ: fullCollision?.pushZ ?? 0,
-        attemptedDeltaX: deltaX,
-        attemptedDeltaZ: deltaZ,
-        actualDeltaX: fullX - startX,
-        actualDeltaZ: fullZ - startZ,
-      };
-    }
-
-    player.x = startX;
-    player.z = startZ;
-
-    const axisOrder = Math.abs(deltaX) >= Math.abs(deltaZ)
-      ? [['x', deltaX], ['z', deltaZ]]
-      : [['z', deltaZ], ['x', deltaX]];
-
-    const axisResult = {
-      movedX: Math.abs(deltaX) <= AXIS_MOVE_EPSILON,
-      movedZ: Math.abs(deltaZ) <= AXIS_MOVE_EPSILON,
-      collided: false,
-      collisionPushX: 0,
-      collisionPushZ: 0,
-    };
-
-    for (let i = 0; i < axisOrder.length; i += 1) {
-      const [axis, delta] = axisOrder[i];
-      if (Math.abs(delta) <= AXIS_MOVE_EPSILON) continue;
-
-      const beforeAxisValue = axis === 'x' ? player.x : player.z;
-      const targetValue = beforeAxisValue + delta;
-
-      if (axis === 'x') {
-        player.x = targetValue;
-      } else {
-        player.z = targetValue;
-      }
-
-      const axisCollision = this.resolveFieldCollisions(player, PLAYER_AXIS_COLLISION_INFO);
-      clampPointToPlayerTravelBounds(player);
-      if (axisCollision?.collided) {
-        axisResult.collided = true;
-        axisResult.collisionPushX += axisCollision.pushX ?? 0;
-        axisResult.collisionPushZ += axisCollision.pushZ ?? 0;
-      }
-
-      const resolvedValue = axis === 'x' ? player.x : player.z;
-      const reachedTarget = didReachAxisTarget(resolvedValue, targetValue);
-      if (axis === 'x') {
-        axisResult.movedX = reachedTarget;
-      } else {
-        axisResult.movedZ = reachedTarget;
-      }
-    }
-
-    const fullDispX = fullX - startX;
-    const fullDispZ = fullZ - startZ;
-    const axisDispX = player.x - startX;
-    const axisDispZ = player.z - startZ;
-    const attemptDir = normalize2(deltaX, deltaZ, 0, 1);
-    const fullForward = fullDispX * attemptDir.x + fullDispZ * attemptDir.z;
-    const axisForward = axisDispX * attemptDir.x + axisDispZ * attemptDir.z;
-    const fullDistanceSq = lengthSq2(fullDispX, fullDispZ);
-    const axisDistanceSq = lengthSq2(axisDispX, axisDispZ);
-    const preferFullResolvedMove = (fullForward > axisForward + 0.02)
-      || (Math.abs(fullForward - axisForward) <= 0.02 && fullDistanceSq > axisDistanceSq + 0.02);
-
-    if (preferFullResolvedMove) {
-      player.x = fullX;
-      player.z = fullZ;
-      return {
-        movedX: didReachAxisTarget(fullX, targetX),
-        movedZ: didReachAxisTarget(fullZ, targetZ),
-        collided: !!fullCollision?.collided,
-        collisionPushX: fullCollision?.pushX ?? 0,
-        collisionPushZ: fullCollision?.pushZ ?? 0,
-        attemptedDeltaX: deltaX,
-        attemptedDeltaZ: deltaZ,
-        actualDeltaX: fullX - startX,
-        actualDeltaZ: fullZ - startZ,
-      };
-    }
-
-    axisResult.attemptedDeltaX = deltaX;
-    axisResult.attemptedDeltaZ = deltaZ;
-    axisResult.actualDeltaX = player.x - startX;
-    axisResult.actualDeltaZ = player.z - startZ;
-    return axisResult;
-  };
-
-  PlayerSystem.prototype.applyWallSlideVelocity = function applyWallSlideVelocity(player, moveResult) {
-    if (!moveResult?.collided) return;
-
-    const pushX = Number(moveResult.collisionPushX) || 0;
-    const pushZ = Number(moveResult.collisionPushZ) || 0;
-    const pushLenSq = lengthSq2(pushX, pushZ);
-    if (pushLenSq <= WALL_SLIDE_EPSILON) return;
-
-    const invPushLen = 1 / Math.sqrt(pushLenSq);
-    const normalX = pushX * invPushLen;
-    const normalZ = pushZ * invPushLen;
-    const inwardSpeed = player.vx * normalX + player.vz * normalZ;
-    if (inwardSpeed >= 0) return;
-
-    player.vx -= normalX * inwardSpeed;
-    player.vz -= normalZ * inwardSpeed;
-  };
-
+export function installPlayerAvoidanceRuntime(PlayerSystem) {
   PlayerSystem.prototype.ensureAvoidanceState = function ensureAvoidanceState() {
     if (!this.avoidanceState) this.avoidanceState = makeAvoidanceState();
     return this.avoidanceState;
@@ -314,9 +172,18 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     state.lastMoveInputMask = moveInputMask;
   };
 
+  // 更新ルール:
+  // - reset 直後の最初の camera heading は差分計算に使わず、prime のみ行う。
+  // - これにより spawn/title 復帰直後の誤 TURNING / MANUAL_OVERRIDE 遷移を防ぐ。
   PlayerSystem.prototype.updateAvoidanceMode = function updateAvoidanceMode(cameraForward, dt) {
     const state = this.ensureAvoidanceState();
     const heading = Math.atan2(cameraForward.x, cameraForward.z);
+    if (!state.cameraHeadingPrimed) {
+      state.lastCameraHeading = heading;
+      state.cameraYawRate = 0;
+      state.cameraHeadingPrimed = true;
+      return state.mode;
+    }
     const yawRate = Math.abs(angleDiff(state.lastCameraHeading, heading)) / Math.max(dt, 0.0001);
     state.lastCameraHeading = heading;
     state.cameraYawRate = yawRate;
@@ -350,12 +217,9 @@ export function installPlayerMovementRuntime(PlayerSystem) {
 
   PlayerSystem.prototype.updateFilteredIntent = function updateFilteredIntent(rawMoveDir, dt) {
     const state = this.ensureAvoidanceState();
-    if (rawMoveDir.lengthSq() <= 0.000001) {
-      return this.syncFilteredIntent(rawMoveDir);
-    }
-    if (lengthSq2(state.filteredIntentX, state.filteredIntentZ) <= 0.000001) {
-      return this.syncFilteredIntent(rawMoveDir);
-    }
+    if (rawMoveDir.lengthSq() <= 0.000001) return this.syncFilteredIntent(rawMoveDir);
+    if (lengthSq2(state.filteredIntentX, state.filteredIntentZ) <= 0.000001) return this.syncFilteredIntent(rawMoveDir);
+
     const follow = clamp01(dt * PLAYER_AVOIDANCE.intentFollowRate);
     const filteredX = lerp(state.filteredIntentX, rawMoveDir.x, follow);
     const filteredZ = lerp(state.filteredIntentZ, rawMoveDir.z, follow);
@@ -366,24 +230,23 @@ export function installPlayerMovementRuntime(PlayerSystem) {
   };
 
   PlayerSystem.prototype.shouldSkipAvoidanceVertical = function shouldSkipAvoidanceVertical(playerHoverY, centerY, halfHeight) {
-    const safeHalfHeight = Math.max(0.02, Number(halfHeight) || 0.02);
-    if (playerHoverY >= centerY + safeHalfHeight + AVOIDANCE_VERTICAL_PASS_OVER_CLEARANCE) return true;
-    return Math.abs(playerHoverY - centerY) > safeHalfHeight + AVOIDANCE_VERTICAL_EXTRA_CLEARANCE;
+    return shouldSkipPlayerVerticalOverlap(playerHoverY, centerY, halfHeight);
   };
 
-  PlayerSystem.prototype.getAvoidanceAssistGate = function getAvoidanceAssistGate(rawMoveDir, speed) {
+  // 更新ルール:
+  // - 回避 assist の起動可否は前フレーム速度ではなく、このフレーム入力から得た motionIntent で判定する。
+  PlayerSystem.prototype.getAvoidanceAssistGate = function getAvoidanceAssistGate(rawMoveDir, motionIntent) {
     const state = this.ensureAvoidanceState();
-    if (rawMoveDir.lengthSq() <= 0.000001) {
+    if (!motionIntent?.hasInput || rawMoveDir.lengthSq() <= 0.000001) {
       state.intentShiftTimer = 0;
       return 'no-input';
     }
-    if (speed < PLAYER_AVOIDANCE.minAssistSpeed) {
+    if (motionIntent.commandSpeed < PLAYER_AVOIDANCE.minAssistSpeed) {
       state.intentShiftTimer = 0;
-      return 'low-speed';
+      return 'low-command';
     }
     return 'active';
   };
-
 
   PlayerSystem.prototype.collectAvoidanceProxies = function collectAvoidanceProxies(playerHoverY, candidates, out = AVOIDANCE_PROXIES) {
     out.length = 0;
@@ -455,7 +318,7 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     return score;
   };
 
-  PlayerSystem.prototype.buildAvoidancePlan = function buildAvoidancePlan(player, rawMoveDir, speed) {
+  PlayerSystem.prototype.buildAvoidancePlan = function buildAvoidancePlan(player, rawMoveDir, planningSpeed) {
     const world = this.game.world;
     if (!world?.collectPlayerAvoidanceCandidatesSegment) return null;
 
@@ -466,7 +329,7 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     const tangentX = -anchorZ;
     const tangentZ = anchorX;
 
-    const farLookahead = clamp(speed * PLAYER_AVOIDANCE.farTime + PLAYER_AVOIDANCE.farBase, PLAYER_AVOIDANCE.farMin, PLAYER_AVOIDANCE.farMax);
+    const farLookahead = clamp(planningSpeed * PLAYER_AVOIDANCE.farTime + PLAYER_AVOIDANCE.farBase, PLAYER_AVOIDANCE.farMin, PLAYER_AVOIDANCE.farMax);
     const endX = player.x + anchorX * farLookahead;
     const endZ = player.z + anchorZ * farLookahead;
     const candidates = world.collectPlayerAvoidanceCandidatesSegment(
@@ -499,7 +362,7 @@ export function installPlayerMovementRuntime(PlayerSystem) {
       if (lateralDist > laneRadius + 0.75) continue;
       const distanceWeight = clamp01(1 - forwardDist / Math.max(farLookahead, 0.0001));
       const centerWeight = clamp01(1 - lateralDist / Math.max(laneRadius, 0.0001));
-      const nearBonus = forwardDist <= clamp(speed * PLAYER_AVOIDANCE.nearTime + PLAYER_AVOIDANCE.nearBase, PLAYER_AVOIDANCE.nearMin, PLAYER_AVOIDANCE.nearMax)
+      const nearBonus = forwardDist <= clamp(planningSpeed * PLAYER_AVOIDANCE.nearTime + PLAYER_AVOIDANCE.nearBase, PLAYER_AVOIDANCE.nearMin, PLAYER_AVOIDANCE.nearMax)
         ? 1.18
         : 1;
       const risk = centerWeight * (0.3 + distanceWeight * 0.7) * nearBonus;
@@ -529,7 +392,7 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     const targetPointX = side > 0 ? leftTargetX : rightTargetX;
     const targetPointZ = side > 0 ? leftTargetZ : rightTargetZ;
     const planDistance = length2(targetPointX - player.x, targetPointZ - player.z);
-    const refSpeed = Math.max(speed, PLAYER_AVOIDANCE.minPlanSpeed);
+    const refSpeed = Math.max(planningSpeed, PLAYER_AVOIDANCE.minPlanSpeed);
     const expectedDuration = clamp(planDistance / refSpeed, PLAYER_AVOIDANCE.minPlanLife, PLAYER_AVOIDANCE.maxPlanLife);
 
     return {
@@ -546,7 +409,7 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     };
   };
 
-  PlayerSystem.prototype.shouldReplanAvoidance = function shouldReplanAvoidance(player, rawMoveDir, speed, dt) {
+  PlayerSystem.prototype.shouldReplanAvoidance = function shouldReplanAvoidance(player, rawMoveDir, dt) {
     const state = this.ensureAvoidanceState();
     if (state.mode !== 'STRAIGHT') {
       state.intentShiftTimer = 0;
@@ -561,7 +424,6 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     if (!plan) return true;
     if (state.time >= plan.expiresAt) return true;
     if (state.blockedFrames >= PLAYER_AVOIDANCE.emergencyBlockedFrames) return true;
-    if (speed < plan.refSpeed * PLAYER_AVOIDANCE.emergencySpeedDropRatio) return true;
 
     const filtered = normalize2(state.filteredIntentX, state.filteredIntentZ, rawMoveDir.x, rawMoveDir.z);
     const planHeading = Math.atan2(plan.anchorDirX, plan.anchorDirZ);
@@ -586,7 +448,10 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     return false;
   };
 
-  PlayerSystem.prototype.computeAssistedMoveDir = function computeAssistedMoveDir(player, rawMoveDir, speed, dt) {
+  // 更新ルール:
+  // - assist / planner の speed 判定は motionIntent.commandSpeed に統一する。
+  // - stale plan の速度低下判定は廃止し、blocked / intent shift / corridor / expiry に責務を分離する。
+  PlayerSystem.prototype.computeAssistedMoveDir = function computeAssistedMoveDir(player, rawMoveDir, motionIntent, dt) {
     const state = this.ensureAvoidanceState();
     ASSISTED_MOVE.copy(rawMoveDir);
 
@@ -597,20 +462,21 @@ export function installPlayerMovementRuntime(PlayerSystem) {
 
     this.updateFilteredIntent(rawMoveDir, dt);
 
-    const assistGate = this.getAvoidanceAssistGate(rawMoveDir, speed);
+    const planningSpeed = motionIntent?.commandSpeed ?? 0;
+    const assistGate = this.getAvoidanceAssistGate(rawMoveDir, motionIntent);
     if (assistGate !== 'active') {
-      this.clearAvoidancePlan(assistGate === 'low-speed' ? 'immediate' : '');
+      this.clearAvoidancePlan(assistGate === 'low-command' ? 'immediate' : '');
       return ASSISTED_MOVE;
     }
 
-    const shouldReplan = this.shouldReplanAvoidance(player, rawMoveDir, speed, dt);
+    const shouldReplan = this.shouldReplanAvoidance(player, rawMoveDir, dt);
     const canPlan = state.mode === 'STRAIGHT'
       && state.time >= state.nextPlannerAt
-      && speed >= PLAYER_AVOIDANCE.minAssistSpeed
-      && rawMoveDir.lengthSq() > 0.000001;
+      && motionIntent?.hasInput
+      && planningSpeed >= PLAYER_AVOIDANCE.minAssistSpeed;
 
     if (shouldReplan && canPlan) {
-      state.plan = this.buildAvoidancePlan(player, rawMoveDir, speed);
+      state.plan = this.buildAvoidancePlan(player, rawMoveDir, planningSpeed);
       state.nextPlannerAt = state.time + PLAYER_AVOIDANCE.plannerInterval;
       state.intentShiftTimer = 0;
       state.blockedFrames = 0;
@@ -651,9 +517,12 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     return ASSISTED_MOVE;
   };
 
-  PlayerSystem.prototype.updateAvoidancePostMove = function updateAvoidancePostMove(player, rawMoveDir, moveResult, attemptedSpeed) {
+  // 更新ルール:
+  // - post-move の blocked 判定は衝突後速度を使わず、attempted/actual forward delta の差だけで決める。
+  // - これにより壁衝突で減速した瞬間でも plan を先に消さず、blockedFrames による再 plan が働く。
+  PlayerSystem.prototype.updateAvoidancePostMove = function updateAvoidancePostMove(player, rawMoveDir, moveResult, motionIntent, dt) {
     const state = this.ensureAvoidanceState();
-    if (attemptedSpeed < PLAYER_AVOIDANCE.minAssistSpeed || rawMoveDir.lengthSq() <= 0.000001) {
+    if (!motionIntent?.hasInput || rawMoveDir.lengthSq() <= 0.000001) {
       this.clearAvoidancePlan('immediate');
       return;
     }
@@ -663,7 +532,8 @@ export function installPlayerMovementRuntime(PlayerSystem) {
     }
 
     const inputDir = normalize2(rawMoveDir.x, rawMoveDir.z, 0, 1);
-    const attemptedForward = (moveResult?.attemptedDeltaX ?? 0) * inputDir.x + (moveResult?.attemptedDeltaZ ?? 0) * inputDir.z;
+    const attemptedForward = ((moveResult?.attemptedDeltaX ?? motionIntent?.commandedDeltaX ?? 0) * inputDir.x)
+      + ((moveResult?.attemptedDeltaZ ?? motionIntent?.commandedDeltaZ ?? 0) * inputDir.z);
     const actualForward = (moveResult?.actualDeltaX ?? 0) * inputDir.x + (moveResult?.actualDeltaZ ?? 0) * inputDir.z;
     const minForward = Math.max(
       PLAYER_AVOIDANCE.blockedMinForwardDistance,
@@ -674,110 +544,5 @@ export function installPlayerMovementRuntime(PlayerSystem) {
 
     if (blocked) state.blockedFrames += 1;
     else state.blockedFrames = Math.max(0, state.blockedFrames - 1);
-  };
-
-  PlayerSystem.prototype.update = function update(dt) {
-    const { state, input, store } = this.game;
-    const { player } = state;
-    const mesh = store.playerMesh;
-    if (!mesh) return;
-
-    const avoidanceState = this.ensureAvoidanceState();
-    avoidanceState.time += dt;
-
-    const look = input.consumeLookDelta();
-    const optionControls = this.game.optionState?.controls ?? null;
-    const sensitivityScale = Number.isFinite(optionControls?.mouseSensitivity)
-      ? optionControls.mouseSensitivity
-      : DEFAULT_MOUSE_SENSITIVITY;
-    const invertY = optionControls?.invertY === true ? -1 : 1;
-    player.yaw -= look.x * LOOK_YAW_SENSITIVITY * sensitivityScale;
-    player.pitch = clamp(player.pitch - (look.y * LOOK_PITCH_SENSITIVITY * sensitivityScale * invertY), -1.1, 0.85);
-    player.invulnTimer = Math.max(0, player.invulnTimer - dt);
-    player.primaryCooldown = Math.max(0, player.primaryCooldown - dt);
-    player.plasmaCooldown = Math.max(0, player.plasmaCooldown - dt);
-    const plasmaReady = player.plasmaCooldown <= 0.0001;
-    const plasmaReadyTriggered = !this.wasPlasmaReady && plasmaReady;
-    this.wasPlasmaReady = plasmaReady;
-    player.weaponHeat = Math.max(0, player.weaponHeat - dt * 0.55);
-    player.recoil = Math.max(0, player.recoil - dt * 8.5);
-
-    if (this.updateFinalClearCinematic(player, mesh, dt)) {
-      return;
-    }
-
-    this.game.renderer.camera.getWorldDirection(CAMERA_MOVE_FORWARD);
-    CAMERA_MOVE_FORWARD.y = 0;
-    if (CAMERA_MOVE_FORWARD.lengthSq() < 0.0001) {
-      CAMERA_MOVE_FORWARD.set(0, 0, -1).applyAxisAngle(UP, player.yaw);
-    }
-    CAMERA_MOVE_FORWARD.normalize();
-    this.updateAvoidanceMode(CAMERA_MOVE_FORWARD, dt);
-    CAMERA_MOVE_RIGHT.crossVectors(CAMERA_MOVE_FORWARD, UP).negate().normalize();
-
-    let moveInputMask = 0;
-    MOVE.set(0, 0, 0);
-    if (input.isDown('KeyW')) {
-      MOVE.add(CAMERA_MOVE_FORWARD);
-      moveInputMask |= 1;
-    }
-    if (input.isDown('KeyS')) {
-      MOVE.sub(CAMERA_MOVE_FORWARD);
-      moveInputMask |= 2;
-    }
-    if (input.isDown('KeyD')) {
-      MOVE.sub(CAMERA_MOVE_RIGHT);
-      moveInputMask |= 4;
-    }
-    if (input.isDown('KeyA')) {
-      MOVE.add(CAMERA_MOVE_RIGHT);
-      moveInputMask |= 8;
-    }
-    if (MOVE.lengthSq() > 0) MOVE.normalize();
-    this.handleMoveInputChange(player, MOVE, moveInputMask);
-
-    const frostMoveScale = this.game.enemies?.getFrostBlizzardMoveScale?.() ?? 1;
-    const astralGelMoveScale = this.game.world.getPlayerMoveScaleAt?.(player.x, player.y, player.z) ?? 1;
-    const moveScale = frostMoveScale * astralGelMoveScale;
-    const planarSpeed = Math.hypot(player.vx, player.vz);
-    const moveDir = this.computeAssistedMoveDir(player, MOVE, planarSpeed, dt);
-    const accel = moveDir.multiplyScalar(PLAYER_BASE.moveSpeed * 3.2 * moveScale);
-    player.vx = lerp(player.vx, accel.x, dt * 4.8);
-    player.vz = lerp(player.vz, accel.z, dt * 4.8);
-    const drag = 1 - Math.min(dt * 0.22, 0.08);
-    player.vx *= drag;
-    player.vz *= drag;
-    this.clampVelocityToInputHalfPlane(player, MOVE);
-
-    const moveResult = this.movePlayerWithFieldSlide(player, player.vx * dt, player.vz * dt);
-    this.applyWallSlideVelocity(player, moveResult);
-    this.clampVelocityToInputHalfPlane(player, MOVE);
-    if (!moveResult.movedX && Math.abs(player.vx) <= AXIS_MOVE_EPSILON) {
-      player.vx = 0;
-    }
-    if (!moveResult.movedZ && Math.abs(player.vz) <= AXIS_MOVE_EPSILON) {
-      player.vz = 0;
-    }
-    this.updateAvoidancePostMove(player, MOVE, moveResult, Math.hypot(player.vx, player.vz));
-
-    const groundY = this.game.world.getHeight(player.x, player.z);
-    player.bob += dt * (5 + Math.hypot(player.vx, player.vz) * 0.1);
-    const targetY = groundY + PLAYER_BASE.hoverHeight + Math.sin(player.bob) * 0.18;
-    player.y = lerp(player.y, targetY, dt * 8);
-
-    mesh.position.set(player.x, player.y, player.z);
-    if (plasmaReadyTriggered) {
-      this.game.effects?.spawnPlasmaReadyBurst?.(mesh, 0x8ff6ff, 1, PLASMA_READY_BURST_OFFSET);
-      this.game.audio?.playSfx('playerPlasmaReady', { cooldownMs: 120 });
-    }
-    mesh.rotation.y = lerp(mesh.rotation.y, player.yaw, dt * 10);
-    mesh.rotation.z = lerp(mesh.rotation.z, -player.vx * 0.018, dt * 8);
-    mesh.rotation.x = lerp(mesh.rotation.x, player.pitch * 0.16 + player.vz * 0.01, dt * 8);
-
-    const hoverRing = mesh.userData.hoverRing;
-    if (hoverRing) {
-      hoverRing.rotation.z += dt * 1.8;
-    }
-    this.updatePlasmaGlowFeedback(player, mesh, state);
   };
 }

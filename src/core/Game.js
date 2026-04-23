@@ -340,6 +340,7 @@ export class Game {
 
     this.ui?.dispose?.();
     this.audio?.dispose?.();
+    this.debug?.dispose?.();
 
     this.stageGimmicks?.clear?.();
     this.store?.reset?.();

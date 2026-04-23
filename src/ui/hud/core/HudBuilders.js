@@ -8,6 +8,7 @@ import { RETICLE_VERTICAL_OFFSET_PX } from '../HudConstants.js';
  * - 新しい固定 HUD パーツを追加するときはまずここへ寄せる。
  * - 毎フレームの state 反映は HudCombatState / HudBossState / HudNoticeState へ分ける。
  * - タイトル画面や pause / interval 専用 UI はここへ戻さない。
+ * - 既存 HUD を upgrade 済みかどうかは dataset で判定するが、UIRoot 再生成時は dataset を信用しすぎず既存 DOM から refs を再bindできるように保つ。
  */
 export function installHudBuilders(UIRoot) {
   UIRoot.prototype.applyReticleLayout = function applyReticleLayout() {
@@ -233,7 +234,16 @@ export function installHudBuilders(UIRoot) {
     const centerPanel = scoreText?.closest('.stat-panel');
     const crystalLine = crystalText?.parentElement;
     if (!scoreText || !crystalText || !centerPanel || !crystalLine) return;
-    if (centerPanel.dataset.crystalHudUpgraded === '1') return;
+
+    if (centerPanel.dataset.crystalHudUpgraded === '1') {
+      const crystalWrap = crystalText.parentElement;
+      const crystalLabel = crystalWrap?.querySelector?.('.label') ?? null;
+      if (crystalWrap && crystalLabel) {
+        this.refs.crystalLabel = crystalLabel;
+        return;
+      }
+      centerPanel.dataset.crystalHudUpgraded = '';
+    }
     centerPanel.dataset.crystalHudUpgraded = '1';
 
     centerPanel.style.display = 'grid';

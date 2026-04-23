@@ -10,6 +10,7 @@
  * Update Rules:
  * - タイトル専用の controls-grid 改変はこのファイルを正本にする。
  * - tutorial panel 本体は hud/TutorialPanelView.js を更新する。
+ * - 同じ静的 DOM を再利用して UIRoot を作り直す経路があるため、controls-grid への変更は破壊的 remove ではなく再bind可能な上書きにする。
  */
 import { APP_VERSION_LABEL } from '../../app/AppMeta.js';
 import { TUTORIAL_MISSION_INDEX } from '../../data/missions.js';
@@ -69,12 +70,20 @@ export function installTitleScreenView(UIRoot) {
 
   UIRoot.prototype.createTitleVersionBadge = function createTitleVersionBadge() {
     const titleCard = this.refs.startScreen?.querySelector('.title-card');
-    if (!titleCard || titleCard.querySelector('.title-version')) return;
+    if (!titleCard) return;
+
+    const existing = titleCard.querySelector('.title-version');
+    if (existing) {
+      existing.textContent = APP_VERSION_LABEL;
+      this.refs.titleVersionBadge = existing;
+      return;
+    }
 
     const badge = document.createElement('div');
     badge.className = 'title-version';
     badge.textContent = APP_VERSION_LABEL;
     titleCard.appendChild(badge);
+    this.refs.titleVersionBadge = badge;
   };
 
   UIRoot.prototype.restoreStartButtonStyle = function restoreStartButtonStyle() {
@@ -110,7 +119,10 @@ export function installTitleScreenView(UIRoot) {
       if (strong) strong.textContent = this.t('common.keys.rightClick');
       if (span) span.textContent = this.t('hud.plasmaShot');
     }
-    removableShiftRow?.remove();
+    if (removableShiftRow) {
+      removableShiftRow.dataset.titleControlHintHidden = '1';
+      removableShiftRow.style.display = 'none';
+    }
   };
 
   UIRoot.prototype.refreshTitleControlHintsLocalization = function refreshTitleControlHintsLocalization() {

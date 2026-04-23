@@ -21,6 +21,7 @@ const PERFORMANCE_REPORT_HISTORY_LIMIT = 10;
  * - 実行中に切り替える設定値はここで保持し、新しい state へ再接続するときもここから再適用する。
  * - デバッグ専用ホットキーもここで解釈し、通常ゲームシステムへ責務を漏らさない。
  * - 静的コライダ debug の shape 解釈と mesh 生成はこのファイルへ持ち込まず、world / render 側の shared 実装へ委譲する。
+ * - dispose はここを正本にし、renderer/debug 配下で確保した GPU 資源の解放漏れを作らない。
  */
 export class DebugSystem {
   constructor(state, search = window.location.search) {
@@ -67,6 +68,12 @@ export class DebugSystem {
     if (game.input.wasPressed('KeyC')) {
       this.clearVisibleEnemies(game);
     }
+  }
+
+  dispose() {
+    this.staticColliderOverlay?.dispose?.();
+    this.staticColliderOverlay = null;
+    this.lastGame = null;
   }
 
   isEnabled() {

@@ -15,13 +15,15 @@ export async function bootstrapApp() {
 
   try {
     updateBootLoadingOverlay(loadingOverlay, finalSnapshot);
-    finalSnapshot = await game.audio?.preloadAllAssets?.({
+    finalSnapshot = await game.audio?.preloadBootAssets?.({
       onProgress: (snapshot) => updateBootLoadingOverlay(loadingOverlay, snapshot),
     }) ?? finalSnapshot;
+  } catch (error) {
+    console.warn('[boot] Audio preload failed; continuing startup.', error);
   } finally {
     updateBootLoadingOverlay(loadingOverlay, { ...finalSnapshot, pending: 0, percent: 100 });
-    // 音声アセットのプリロードはベストエフォート扱い。
-    // 一部失敗しても該当トラックを unavailable にして無音継続するため、起動は止めない。
+    // 起動時は resident BGM と全 SFX だけをベストエフォートで読む。
+    // ミッション専用 BGM は beginMission 側で個別 preload し、失敗時も無音継続で起動を止めない。
     game.start();
     requestAnimationFrame(() => hideBootLoadingOverlay(loadingOverlay));
   }

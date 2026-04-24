@@ -34,6 +34,15 @@ async function runWithConcurrency(items, worker, concurrency = AUDIO_PRELOAD_CON
 }
 
 export const audioAssetCacheMethods = {
+  getTrackDefinition(trackId) {
+    if (!trackId) return null;
+    return this.bgmTracks?.[trackId] ?? this.sfxTracks?.[trackId] ?? null;
+  },
+
+  getTrackSourceById(trackId) {
+    return this.getTrackDefinition(trackId)?.src ?? '';
+  },
+
   buildAudioSourceTrackIndex() {
     const index = new Map();
     const catalogs = [this.bgmTracks, this.sfxTracks];
@@ -61,6 +70,15 @@ export const audioAssetCacheMethods = {
     return [...(this.audioSourceTrackIndex?.keys?.() ?? [])];
   },
 
+  getAudioSourcesForTrackIds(trackIds = []) {
+    const unique = new Set();
+    for (const trackId of trackIds) {
+      const src = this.getTrackSourceById(trackId);
+      if (src) unique.add(src);
+    }
+    return [...unique];
+  },
+
   getAudioPreloadSnapshot() {
     return buildProgressSnapshot(this.audioPreloadState);
   },
@@ -74,19 +92,73 @@ export const audioAssetCacheMethods = {
     return new Audio(this.resolveAudioSource(src));
   },
 
+  attachOwnerToSource(src, ownerId) {
+    if (!src || !ownerId) return null;
+    const entry = this.audioAssetCache.get(src) ?? {
+      src,
+      status: 'idle',
+      objectUrl: null,
+      mode: 'origin',
+      error: null,
+      promise: null,
+      owners: new Set(),
+    };
+    if (!(entry.owners instanceof Set)) entry.owners = new Set();
+    entry.owners.add(ownerId);
+    this.audioAssetCache.set(src, entry);
+
+    let ownedSources = this.audioAssetOwners.get(ownerId);
+    if (!ownedSources) {
+      ownedSources = new Set();
+      this.audioAssetOwners.set(ownerId, ownedSources);
+    }
+    ownedSources.add(src);
+    return entry;
+  },
+
+  releaseAudioSourceIfUnused(src) {
+    if (!src) return false;
+    const entry = this.audioAssetCache.get(src);
+    if (!entry) return false;
+    const ownerCount = entry.owners instanceof Set ? entry.owners.size : 0;
+    if (ownerCount > 0 || entry.promise) return false;
+    if (entry.objectUrl) {
+      try {
+        URL.revokeObjectURL(entry.objectUrl);
+      } catch {
+        // no-op
+      }
+    }
+    this.audioAssetCache.delete(src);
+    return true;
+  },
+
+  releaseOwner(ownerId) {
+    if (!ownerId) return false;
+    const ownedSources = this.audioAssetOwners.get(ownerId);
+    if (!ownedSources) return false;
+    for (const src of ownedSources) {
+      const entry = this.audioAssetCache.get(src);
+      if (!entry) continue;
+      if (entry.owners instanceof Set) entry.owners.delete(ownerId);
+      this.releaseAudioSourceIfUnused(src);
+    }
+    this.audioAssetOwners.delete(ownerId);
+    return true;
+  },
+
   resolveAudioSource(src) {
     if (!src) return '';
     const entry = this.audioAssetCache.get(src);
     return entry?.objectUrl || src;
   },
 
-  async preloadAllAssets({ onProgress } = {}) {
-    if (this.audioPreloadPromise) {
-      this.notifyAudioPreloadProgress(onProgress);
-      return this.audioPreloadPromise;
+  async preloadTrackIds(trackIds = [], { ownerId = null, onProgress } = {}) {
+    const sources = this.getAudioSourcesForTrackIds(trackIds);
+    if (ownerId) {
+      for (const src of sources) this.attachOwnerToSource(src, ownerId);
     }
 
-    const sources = this.getAllAudioSources();
     this.audioPreloadState = {
       total: sources.length,
       completed: 0,
@@ -95,26 +167,39 @@ export const audioAssetCacheMethods = {
     };
     this.notifyAudioPreloadProgress(onProgress);
 
-    this.audioPreloadPromise = (async () => {
-      await runWithConcurrency(sources, async (src) => {
-        let success = false;
-        try {
-          await this.preloadAudioSource(src);
-          success = true;
-        } catch {
-          // 音声プリロードは仕様としてベストエフォート。
-          // 欠損やデコード失敗があっても、該当トラックを unavailable にして
-          // 実行時は無音化できるため、ここでは起動失敗にしない。
-          success = false;
-        } finally {
-          this.audioPreloadState.completed += 1;
-          if (success) this.audioPreloadState.succeeded += 1;
-          else this.audioPreloadState.failed += 1;
-          this.notifyAudioPreloadProgress(onProgress);
-        }
-      });
-      return this.getAudioPreloadSnapshot();
-    })();
+    await runWithConcurrency(sources, async (src) => {
+      let success = false;
+      try {
+        await this.preloadAudioSource(src);
+        success = true;
+      } catch {
+        success = false;
+      } finally {
+        this.audioPreloadState.completed += 1;
+        if (success) this.audioPreloadState.succeeded += 1;
+        else this.audioPreloadState.failed += 1;
+        this.notifyAudioPreloadProgress(onProgress);
+      }
+    });
+
+    return this.getAudioPreloadSnapshot();
+  },
+
+  async preloadBootAssets({ onProgress } = {}) {
+    if (this.audioPreloadPromise) {
+      this.notifyAudioPreloadProgress(onProgress);
+      return this.audioPreloadPromise;
+    }
+
+    const trackIds = [
+      ...this.residentBgmTrackIds,
+      ...Object.keys(this.sfxTracks ?? {}),
+    ];
+
+    this.audioPreloadPromise = this.preloadTrackIds(trackIds, {
+      ownerId: this.residentAudioOwnerId,
+      onProgress,
+    });
 
     try {
       return await this.audioPreloadPromise;
@@ -137,21 +222,30 @@ export const audioAssetCacheMethods = {
       mode: 'origin',
       error: null,
       promise: null,
+      owners: new Set(),
     };
     entry.status = 'loading';
     entry.error = null;
     this.audioAssetCache.set(src, entry);
 
+    if (!(entry.owners instanceof Set)) entry.owners = new Set();
+
     entry.promise = (async () => {
+      let pendingObjectUrl = null;
       try {
         const response = await fetch(src, { cache: 'force-cache' });
         if (!response.ok) throw new Error(`Failed to fetch audio: ${response.status}`);
         const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        await this.probeAudioReady(objectUrl);
-        entry.objectUrl = objectUrl;
+        pendingObjectUrl = URL.createObjectURL(blob);
+        await this.probeAudioReady(pendingObjectUrl);
+        entry.objectUrl = pendingObjectUrl;
+        pendingObjectUrl = null;
         entry.mode = 'blob';
       } catch (blobError) {
+        if (pendingObjectUrl) {
+          URL.revokeObjectURL(pendingObjectUrl);
+          pendingObjectUrl = null;
+        }
         if (entry.objectUrl) {
           URL.revokeObjectURL(entry.objectUrl);
           entry.objectUrl = null;
@@ -173,6 +267,7 @@ export const audioAssetCacheMethods = {
       return entry;
     })().finally(() => {
       entry.promise = null;
+      this.releaseAudioSourceIfUnused(src);
     });
 
     return entry.promise;
@@ -227,7 +322,44 @@ export const audioAssetCacheMethods = {
     }
   },
 
+  isCurrentBgmOwnedByActiveMissionAudioSet() {
+    if (!this.currentBgmId || !this.activeMissionAudioOwnerId) return false;
+    const ownedSources = this.audioAssetOwners.get(this.activeMissionAudioOwnerId);
+    if (!ownedSources?.size) return false;
+    const currentSource = this.getTrackSourceById(this.currentBgmId);
+    return !!currentSource && ownedSources.has(currentSource);
+  },
+
+  stopAndReleaseActiveMissionAudioSet() {
+    // 重要: mission owner 解放より先に、owner 配下の現在再生 BGM を必ず停止する。
+    // object URL revoke 後の error で曲が unavailable 化する事故をここで防ぐ。
+    if (this.isCurrentBgmOwnedByActiveMissionAudioSet()) {
+      this.stopBgm({ invalidateSync: false });
+    }
+    return this.releaseActiveMissionAudioSet();
+  },
+
+  activateMissionAudioSet(missionId) {
+    this.stopAndReleaseActiveMissionAudioSet();
+    const trackIds = this.resolveMissionScopedBgmTrackIds?.(missionId) ?? [];
+    if (!trackIds.length) return null;
+    const ownerId = `mission:${++this.missionAudioOwnerSerial}`;
+    this.activeMissionAudioOwnerId = ownerId;
+    this.preloadTrackIds(trackIds, { ownerId }).catch(() => {
+      // ミッション専用 BGM の読み込み失敗は無音継続。
+    });
+    return ownerId;
+  },
+
+  releaseActiveMissionAudioSet() {
+    if (!this.activeMissionAudioOwnerId) return false;
+    const released = this.releaseOwner(this.activeMissionAudioOwnerId);
+    this.activeMissionAudioOwnerId = null;
+    return released;
+  },
+
   releaseAudioAssetCache() {
+    this.audioAssetOwners.clear();
     for (const entry of this.audioAssetCache.values()) {
       if (entry?.objectUrl) {
         try {

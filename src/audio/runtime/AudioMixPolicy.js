@@ -40,6 +40,7 @@ updateRuntimeMix({ mode } = {}) {
   if (nextBgmScale !== this.bgmStateVolumeScale) {
     this.bgmStateVolumeScale = nextBgmScale;
     this.applyCurrentBgmVolume();
+    this.applyPreviewBgmVolume?.();
   }
   if (nextSfxScale !== this.sfxStateVolumeScale) {
     this.sfxStateVolumeScale = nextSfxScale;
@@ -50,6 +51,7 @@ updateRuntimeMix({ mode } = {}) {
 setBgmVolume(volume) {
   this.bgmVolume = clamp(Number(volume) || 0, 0, 1);
   this.applyCurrentBgmVolume();
+  this.applyPreviewBgmVolume?.();
   return this.bgmVolume;
 },
 

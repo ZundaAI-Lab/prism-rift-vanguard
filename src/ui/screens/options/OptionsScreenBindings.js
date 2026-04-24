@@ -6,6 +6,7 @@
  * - 入力イベントや画面を開閉したときの副作用はこのファイルへ集約する。
  * - 値の見た目反映は State 側で行い、ここでは保存 API 呼び出しと導線制御に徹する。
  * - 新規コントロール追加時は bindOptionsControls に必ず対応イベントを追加する。
+ * - 重要: サウンドテストは preview 専用。main BGM の hold や mission キャッシュ解放へ絶対に参加させない。
  */
 /**
  * オプション画面の背面へ入力が漏れないよう、UI レイヤーでイベント伝播を止める。
@@ -52,24 +53,22 @@ export function installOptionsScreenBindings(UIRoot) {
     } else {
       this.game.input?.setEnabled?.(true);
       if (gameplayCanvas) gameplayCanvas.style.pointerEvents = '';
-      this.stopSoundTestPlayback({ restoreAutoBgm: true });
+      this.stopSoundTestPlayback({ resumeMainBgm: true });
     }
   };
 
   UIRoot.prototype.beginSoundTestPlayback = function beginSoundTestPlayback() {
     const trackId = this.refs.optionsSoundTestSelect?.value || this.game.optionState?.soundTestTrackId;
     if (!trackId) return;
-    this.soundTestPlaying = true;
-    this.game.audio?.holdAutoBgm?.({ durationMs: 60 * 60 * 1000, mode: this.game.state.mode });
-    this.game.audio?.playBgm?.(trackId, { restart: true });
+    const started = this.game.audio?.playPreviewBgm?.(trackId, { restart: true }) ?? false;
+    this.soundTestPlaying = !!started;
     this.refreshOptionsScreenState();
   };
 
-  UIRoot.prototype.stopSoundTestPlayback = function stopSoundTestPlayback({ restoreAutoBgm = true } = {}) {
-    if (!this.soundTestPlaying && !restoreAutoBgm) return;
+  UIRoot.prototype.stopSoundTestPlayback = function stopSoundTestPlayback({ resumeMainBgm = true } = {}) {
+    const hadPreview = this.soundTestPlaying || !!this.game.audio?.previewBgmAudio;
     this.soundTestPlaying = false;
-    this.game.audio?.holdAutoBgm?.({ durationMs: 0, mode: this.game.state.mode });
-    if (restoreAutoBgm) this.game.syncAudioState?.();
+    if (hadPreview) this.game.audio?.stopPreviewBgm?.({ resumeMain: resumeMainBgm });
     this.refreshOptionsScreenState();
   };
 
@@ -99,7 +98,7 @@ export function installOptionsScreenBindings(UIRoot) {
       if (!accepted) return;
       this.playUiConfirm();
       const resumeSoundTest = this.soundTestPlaying;
-      this.stopSoundTestPlayback({ restoreAutoBgm: false });
+      this.stopSoundTestPlayback({ resumeMainBgm: false });
       const snapshot = this.game.options.resetToDefaults();
       this.game.applyOptionSettings(snapshot);
       if (resumeSoundTest) this.beginSoundTestPlayback();
@@ -120,7 +119,7 @@ export function installOptionsScreenBindings(UIRoot) {
     };
     if (this.refs.optionsSoundTestStopBtn) this.refs.optionsSoundTestStopBtn.onclick = () => {
       this.playUiCancel();
-      this.stopSoundTestPlayback({ restoreAutoBgm: true });
+      this.stopSoundTestPlayback({ resumeMainBgm: true });
     };
 
     if (this.refs.optionsBgmVolume) this.refs.optionsBgmVolume.oninput = (event) => {

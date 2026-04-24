@@ -266,7 +266,7 @@ export function installUiRootLifecycle(UIRoot) {
     this.unregisterConfirmDialogKeydown();
     this.unregisterConfirmDialogKeydown = null;
     this.resolveConfirmation(false);
-    this.stopSoundTestPlayback({ restoreAutoBgm: false });
+    this.stopSoundTestPlayback({ resumeMainBgm: false });
 
     this.disposeCompendiumView();
     this.disposeMedalPreviewAssets();

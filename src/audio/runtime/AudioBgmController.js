@@ -8,6 +8,7 @@ import {
   BGM_FADE_OUT_MS,
   getAudioRuntime,
   detachBgmErrorHandler,
+  detachPreviewHandlers,
   disposeAudio,
   safePause,
   safeCurrentTime,
@@ -22,7 +23,8 @@ bindUserGestureUnlock(target = document) {
     this.userUnlocked = true;
     this.resumeSpatialAudioContext();
     this.retryPendingBgm();
-    this.unbindUserGestureUnlock();
+    this.retryPendingPreview();
+    if (!this.pendingBgmRequest && !this.pendingPreviewRequest) this.unbindUserGestureUnlock();
   };
   target.addEventListener('pointerdown', this.handleUserGestureUnlock, true);
   target.addEventListener('keydown', this.handleUserGestureUnlock, true);
@@ -53,9 +55,26 @@ resolveDesiredBgmId({ mode, missionId, missionStatus, bossActive, bossForm } = {
   return MISSION_BGM_ID[missionId] ?? null;
 },
 
+invalidateBgmSync() {
+  this.lastSyncSignature = '';
+},
+
+shouldKeepCurrentBgmState(desiredBgmId, { autoBgmHoldActive = false } = {}) {
+  if (autoBgmHoldActive) return true;
+  if (this.previewBgmAudio) return true;
+  if (desiredBgmId === SUPPRESS_AUTO_BGM) return true;
+  if (!desiredBgmId) return !this.currentBgmAudio && !this.currentBgmId;
+  if (this.unavailableTrackIds.has(desiredBgmId)) return true;
+  const pendingStartMatches = !!this.pendingBgmStartTimer && this.currentBgmId === desiredBgmId && !!this.currentBgmAudio;
+  if (pendingStartMatches) return true;
+  if (this.pendingBgmRequest?.trackId === desiredBgmId) return true;
+  return this.currentBgmId === desiredBgmId && !!this.currentBgmAudio;
+},
+
 syncGameState(snapshot = {}) {
   this.updateRuntimeMix(snapshot);
   const autoBgmHoldActive = this.isAutoBgmHoldActive(snapshot.mode ?? null);
+  const desiredBgmId = this.resolveDesiredBgmId(snapshot);
   const signature = JSON.stringify({
     mode: snapshot.mode ?? null,
     missionId: snapshot.missionId ?? null,
@@ -64,11 +83,10 @@ syncGameState(snapshot = {}) {
     bossForm: snapshot.bossForm ?? null,
     autoBgmHoldActive,
   });
-  if (signature === this.lastSyncSignature) return;
+  if (signature === this.lastSyncSignature && this.shouldKeepCurrentBgmState(desiredBgmId, { autoBgmHoldActive })) return;
   this.lastSyncSignature = signature;
 
-  const desiredBgmId = this.resolveDesiredBgmId(snapshot);
-  if (autoBgmHoldActive) return;
+  if (autoBgmHoldActive || this.previewBgmAudio) return;
   if (this.suppressedAutoBgmMode) {
     const sameMode = snapshot.mode === this.suppressedAutoBgmMode;
     const sameTrack = !this.suppressedAutoBgmTrackId || desiredBgmId === this.suppressedAutoBgmTrackId;
@@ -186,6 +204,7 @@ playBgm(trackId, { restart = false, loop = null } = {}) {
       this.currentBgmId = null;
     }
     this.pendingBgmRequest = null;
+    this.invalidateBgmSync();
     disposeAudio(audio);
   };
 
@@ -210,6 +229,16 @@ retryPendingBgm() {
     return this.tryPlayMedia(this.currentBgmAudio, request.trackId, 'bgm');
   }
   return this.playBgm(request.trackId, request.options);
+},
+
+retryPendingPreview() {
+  if (!this.pendingPreviewRequest?.trackId) return false;
+  const request = this.pendingPreviewRequest;
+  this.pendingPreviewRequest = null;
+  if (this.previewBgmId === request.trackId && this.previewBgmAudio) {
+    return this.tryPlayMedia(this.previewBgmAudio, request.trackId, 'preview');
+  }
+  return this.playPreviewBgm(request.trackId, request.options);
 },
 
 fadeOutBgm({ durationMs = BGM_FADE_OUT_MS, stopOnComplete = true } = {}) {
@@ -260,7 +289,78 @@ resumeBgm() {
   return this.tryPlayMedia(this.currentBgmAudio, this.currentBgmId, 'bgm');
 },
 
-stopBgm({ preservePending = false } = {}) {
+applyPreviewBgmVolume() {
+  if (!this.previewBgmAudio) return;
+  try {
+    this.previewBgmAudio.volume = clamp(this.bgmVolume, 0, 1);
+  } catch {
+    // no-op
+  }
+},
+
+playPreviewBgm(trackId, { restart = true, loop = null } = {}) {
+  if (!trackId || this.unavailableTrackIds.has(trackId)) return false;
+  const track = this.bgmTracks[trackId];
+  if (!track?.src) return false;
+
+  const reuseCurrent = this.previewBgmId === trackId && this.previewBgmAudio;
+  if (reuseCurrent) {
+    if (typeof loop === 'boolean') this.previewBgmAudio.loop = loop;
+    if (restart) safeCurrentTime(this.previewBgmAudio, 0);
+    this.applyPreviewBgmVolume();
+    if (this.previewBgmAudio.paused) this.tryPlayMedia(this.previewBgmAudio, trackId, 'preview');
+    return !!this.previewBgmAudio && this.previewBgmId === trackId && !this.unavailableTrackIds.has(trackId);
+  }
+
+  // 重要: サウンドテストは本編 BGM とは別レーン。
+  // currentBgmId/currentBgmAudio や mission キャッシュ所有権には触らない。
+  this.stopPreviewBgm({ resumeMain: false });
+  this.pauseBgm();
+
+  const audio = new Audio(track.src);
+  audio.preload = 'auto';
+  audio.loop = typeof loop === 'boolean' ? loop : track.loop !== false;
+  this.previewBgmToken += 1;
+  const previewToken = this.previewBgmToken;
+  this.previewBgmAudio = audio;
+  this.previewBgmId = trackId;
+  this.applyPreviewBgmVolume();
+
+  const stopPreview = ({ resumeMain = true } = {}) => {
+    if (previewToken !== this.previewBgmToken) return;
+    this.stopPreviewBgm({ resumeMain });
+  };
+
+  const runtime = getAudioRuntime(audio);
+  runtime.previewToken = previewToken;
+  const handleEnded = () => stopPreview({ resumeMain: true });
+  const handleError = () => {
+    if (previewToken !== this.previewBgmToken || this.previewBgmAudio !== audio || this.previewBgmId !== trackId) return;
+    this.markTrackUnavailable(trackId);
+    stopPreview({ resumeMain: true });
+  };
+  runtime.previewEndedHandler = handleEnded;
+  runtime.previewErrorHandler = handleError;
+  audio.addEventListener('ended', handleEnded, { once: true });
+  audio.addEventListener('error', handleError, { once: true });
+
+  this.tryPlayMedia(audio, trackId, 'preview');
+  return this.previewBgmAudio === audio && this.previewBgmId === trackId && !this.unavailableTrackIds.has(trackId);
+},
+
+stopPreviewBgm({ resumeMain = true } = {}) {
+  this.previewBgmToken += 1;
+  this.pendingPreviewRequest = null;
+  const previewAudio = this.previewBgmAudio;
+  this.previewBgmAudio = null;
+  this.previewBgmId = null;
+  detachPreviewHandlers(previewAudio);
+  disposeAudio(previewAudio);
+  if (resumeMain && !this.resumeBgm()) this.invalidateBgmSync();
+  return true;
+},
+
+stopBgm({ preservePending = false, invalidateSync = true } = {}) {
   this.cancelBgmFade({ resetScale: false });
   this.clearPendingBgmStart();
   if (!preservePending) this.pendingBgmRequest = null;
@@ -270,6 +370,7 @@ stopBgm({ preservePending = false } = {}) {
   this.currentBgmAudio = null;
   this.currentBgmId = null;
   this.bgmFadeVolumeScale = 1;
+  if (invalidateSync) this.invalidateBgmSync();
   return true;
 }
 };

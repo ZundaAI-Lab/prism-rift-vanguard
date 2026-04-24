@@ -370,6 +370,9 @@ export function installMissionClearFlow(MissionSystem) {
 
   MissionSystem.prototype.finalizeMissionClear = function finalizeMissionClear() {
     const mission = this.currentMission;
+    // 重要: clear / interval へ出る前に mission BGM を停止し、その後で owner を外す。
+    // 先に解放すると現在再生中の object URL revoke が error 扱いになりうる。
+    this.game.audio?.stopAndReleaseActiveMissionAudioSet?.();
     if (mission?.isTutorial) {
       const nextMission = MISSIONS[CAMPAIGN_START_MISSION_INDEX] ?? MISSIONS[0];
       if (nextMission) {

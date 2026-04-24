@@ -24,7 +24,9 @@ export function createBootLoadingOverlay() {
 export function updateBootLoadingOverlay(overlay, snapshot = {}) {
   const total = Math.max(0, Number(snapshot.total) || 0);
   const completed = Math.max(0, Number(snapshot.completed) || 0);
-  const pending = Math.max(0, Number(snapshot.pending) || Math.max(0, total - completed));
+  const fallbackPending = Math.max(0, total - completed);
+  const pendingValue = Number(snapshot.pending ?? fallbackPending);
+  const pending = Math.max(0, Number.isFinite(pendingValue) ? pendingValue : fallbackPending);
   const percent = total > 0 ? Math.min(100, Math.max(0, Number(snapshot.percent) || 0)) : 100;
 
   if (overlay.fill) {

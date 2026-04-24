@@ -228,9 +228,13 @@ export class Game {
     this.resumeRequested = false;
     this.debug.finalizeMissionPerformance(this, 'aborted', { reason: 'backToTitle' });
     const shouldStopCurrentBgm = this.state.mode === 'playing' || this.state.mode === 'paused' || this.state.mode === 'gameoverSequence' || this.state.mode === 'gameover';
+    this.audio?.stopPreviewBgm?.({ resumeMain: false });
     if (shouldStopCurrentBgm) {
       this.audio.stopBgm();
+      this.audio?.stopAndReleaseActiveMissionAudioSet?.();
       this.audio.suppressAutoBgmForMode('title');
+    } else {
+      this.audio?.stopAndReleaseActiveMissionAudioSet?.();
     }
     this.state = createInitialState();
     this.debug.attachState(this.state);

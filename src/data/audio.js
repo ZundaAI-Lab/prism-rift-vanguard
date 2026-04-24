@@ -28,11 +28,13 @@ function minimapSpatialSfx(fileName, options = {}) {
 /**
  * Responsibility:
  * - Audio file catalog and logical IDs.
+ * - 常駐 BGM とミッション専用 BGM の対応表を提供する。
  *
  * Rules:
  * - This file is data-only. Do not create Audio instances here.
  * - Paths are resolved from this module so runtime code stays free of stringly-typed asset paths.
  * - SFX overlap policy may be tuned here, but playback mechanics belong to src/audio/AudioManager.js.
+ * - resident / mission のロード方針はここを正本にし、ランタイム側で曲名を直書きしない。
  */
 export const BGM_TRACKS = {
   title: bgm('bgm-title.mp3'),
@@ -57,6 +59,30 @@ export const BGM_TRACKS = {
   bossVoidFighter: bgm('bgm-boss-void-fighter.mp3'),
 };
 
+
+
+export const RESIDENT_BGM_TRACK_IDS = Object.freeze([
+  'title',
+  'hangar',
+  'clear',
+  'gameover',
+]);
+
+const MISSION_SCOPED_BGM_TRACK_IDS = Object.freeze({
+  tutorial: Object.freeze(['tutorial']),
+  desert: Object.freeze(['missionDesert', 'bossDesert']),
+  swamp: Object.freeze(['missionSwamp', 'bossSwamp']),
+  forge: Object.freeze(['missionForge', 'bossForge']),
+  frost: Object.freeze(['missionFrost', 'bossFrost']),
+  mirror: Object.freeze(['missionMirror', 'bossMirror']),
+  astral: Object.freeze(['missionAstral', 'bossAstral']),
+  voidcrown: Object.freeze(['missionVoidcrown', 'bossVoidFortress', 'bossVoidFighter']),
+});
+
+export function getMissionScopedBgmTrackIds(missionId) {
+  if (!missionId) return [];
+  return [...(MISSION_SCOPED_BGM_TRACK_IDS[missionId] ?? [])];
+}
 
 export const SOUND_TEST_TRACK_IDS = Object.freeze([
   'missionDesert',

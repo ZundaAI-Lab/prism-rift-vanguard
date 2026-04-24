@@ -57,7 +57,11 @@ export function smoothstep01(value) {
 }
 
 export function isAutoplayError(error) {
-  return error?.name === 'NotAllowedError' || error?.name === 'AbortError';
+  return error?.name === 'NotAllowedError';
+}
+
+export function isPlaybackAbortError(error) {
+  return error?.name === 'AbortError';
 }
 
 export function safePause(audio) {
@@ -95,7 +99,12 @@ export function getAudioRuntime(audio) {
       volumeScale: 1,
       startedAt: -Infinity,
       voiceSerial: 0,
+      sfxPlaySerial: 0,
+      mediaPlaySerial: 0,
+      previewToken: 0,
       bgmErrorHandler: null,
+      previewEndedHandler: null,
+      previewErrorHandler: null,
     };
   }
   return audio.__prismAudioRuntime;
@@ -112,6 +121,29 @@ export function detachBgmErrorHandler(audio) {
     // no-op
   }
   runtime.bgmErrorHandler = null;
+}
+
+export function detachPreviewHandlers(audio) {
+  if (!audio?.removeEventListener) return;
+  const runtime = getAudioRuntime(audio);
+  const endedHandler = runtime?.previewEndedHandler;
+  const errorHandler = runtime?.previewErrorHandler;
+  if (endedHandler) {
+    try {
+      audio.removeEventListener('ended', endedHandler);
+    } catch {
+      // no-op
+    }
+    runtime.previewEndedHandler = null;
+  }
+  if (errorHandler) {
+    try {
+      audio.removeEventListener('error', errorHandler);
+    } catch {
+      // no-op
+    }
+    runtime.previewErrorHandler = null;
+  }
 }
 
 export function isVoiceReusable(audio) {

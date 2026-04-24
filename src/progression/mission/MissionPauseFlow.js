@@ -29,6 +29,9 @@ export function installMissionPauseFlow(MissionSystem) {
 
   MissionSystem.prototype.completeGameOverSequence = function completeGameOverSequence() {
     this.game.debug?.finalizeMissionPerformance?.(this.game, 'gameover', { reason: 'completeGameOverSequence' });
+    // 重要: gameover 確定では再生停止を先に行い、その後で mission owner を外す。
+    // 逆順にすると revoke 後の error で曲が unavailable 化しうる。
+    this.game.audio?.stopAndReleaseActiveMissionAudioSet?.();
     this.game.state.mode = 'gameover';
   }
 

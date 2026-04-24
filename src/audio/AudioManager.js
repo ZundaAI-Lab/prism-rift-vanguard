@@ -1,8 +1,14 @@
-import { BGM_TRACKS, SFX_TRACKS } from '../data/audio.js';
+import {
+  BGM_TRACKS,
+  SFX_TRACKS,
+  RESIDENT_BGM_TRACK_IDS,
+  getMissionScopedBgmTrackIds,
+} from '../data/audio.js';
 import { clamp } from '../utils/math.js';
 import { audioMixPolicyMethods } from './runtime/AudioMixPolicy.js';
 import { audioSpatialMethods } from './runtime/AudioSpatial.js';
 import { audioBgmControllerMethods } from './runtime/AudioBgmController.js';
+import { audioPlaybackRuntimeMethods } from './runtime/AudioPlaybackRuntime.js';
 import { audioSfxPoolMethods } from './runtime/AudioSfxPool.js';
 import { audioAssetCacheMethods } from './runtime/AudioAssetCache.js';
 
@@ -15,6 +21,10 @@ import { audioAssetCacheMethods } from './runtime/AudioAssetCache.js';
  * - Volume is owned per group (BGM/SFX), not per file.
  * - Missing files or failed loads must degrade silently to no-audio; they must never break the game loop.
  * - BGM selection may be driven from runtime state, but asset catalog stays in src/data/audio.js.
+ * - 重要: BGM は resident / mission / preview に分離する。
+ *   - resident: title / hangar / clear / gameover と全 SFX。起動後は保持する。
+ *   - mission: 開始したミッション専用 BGM 群。ミッション文脈を離れたら一括解放する。
+ *   - preview: サウンドテスト専用。キャッシュ管理へ参加させず、本編 BGM と別レーンで扱う。
  */
 export class AudioManager {
   constructor({ bgmTracks = BGM_TRACKS, sfxTracks = SFX_TRACKS, bgmVolume = 0.7, sfxVolume = 0.85, getPlayerPosition = null, getListenerObject = null } = {}) {
@@ -28,6 +38,7 @@ export class AudioManager {
     this.currentBgmId = null;
     this.currentBgmAudio = null;
     this.pendingBgmRequest = null;
+    this.pendingPreviewRequest = null;
     this.unavailableTrackIds = new Set();
     this.activeSfx = new Set();
     this.sfxPools = new Map();
@@ -53,6 +64,15 @@ export class AudioManager {
     this.audioContextUnavailable = false;
     this.audioSourceTrackIndex = this.buildAudioSourceTrackIndex();
     this.audioAssetCache = new Map();
+    this.audioAssetOwners = new Map();
+    this.residentAudioOwnerId = 'resident';
+    this.activeMissionAudioOwnerId = null;
+    this.missionAudioOwnerSerial = 0;
+    this.previewBgmId = null;
+    this.previewBgmAudio = null;
+    this.previewBgmToken = 0;
+    this.residentBgmTrackIds = RESIDENT_BGM_TRACK_IDS;
+    this.resolveMissionScopedBgmTrackIds = getMissionScopedBgmTrackIds;
     this.audioPreloadState = { total: 0, completed: 0, succeeded: 0, failed: 0 };
     this.audioPreloadPromise = null;
 
@@ -63,6 +83,7 @@ export class AudioManager {
     this.unbindUserGestureUnlock?.();
     this.clearPendingBgmStart?.();
     this.cancelBgmFade?.();
+    this.stopPreviewBgm?.({ resumeMain: false });
     this.stopBgm?.();
     this.stopAllSfx?.();
 
@@ -74,6 +95,8 @@ export class AudioManager {
     this.sfxBurstState.clear?.();
     this.sfxLastPlayAt.clear?.();
     this.pendingBgmRequest = null;
+    this.pendingPreviewRequest = null;
+    this.releaseActiveMissionAudioSet?.();
     this.releaseAudioAssetCache?.();
 
     try {
@@ -90,6 +113,7 @@ Object.assign(
   audioMixPolicyMethods,
   audioSpatialMethods,
   audioBgmControllerMethods,
+  audioPlaybackRuntimeMethods,
   audioSfxPoolMethods,
   audioAssetCacheMethods,
 );

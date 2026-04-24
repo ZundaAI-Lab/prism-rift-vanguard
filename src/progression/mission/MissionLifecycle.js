@@ -72,6 +72,7 @@ export function installMissionLifecycle(MissionSystem) {
   MissionSystem.prototype.resetCampaign = function resetCampaign() {
     this.game.debug?.finalizeMissionPerformance?.(this.game, 'reset', { reason: 'resetCampaign' });
     this.cancelIntervalTransition();
+    this.game.audio?.stopAndReleaseActiveMissionAudioSet?.();
     this.game.state.score = 0;
     this.game.state.crystals = 0;
     this.game.state.missionIndex = 0;
@@ -186,6 +187,9 @@ export function installMissionLifecycle(MissionSystem) {
     };
     state.player.health = state.player.maxHealth;
 
+    // 重要: mission owner は beginMission だけで張り替える。
+    // デバッグジャンプやリトライも最終的にここへ集約し、ミッション専用 BGM の所有権を一元管理する。
+    this.game.audio?.activateMissionAudioSet?.(mission?.id ?? null);
     this.game.audio?.setPlayerSfxSuppressed(false);
     this.game.store.clearCombatEntities();
     this.game.enemies.clearEncounterRuntimeState();
@@ -317,6 +321,9 @@ export function installMissionLifecycle(MissionSystem) {
     };
     const mission = MISSIONS[checkpoint.missionIndex] ?? this.currentMission;
     this.cancelIntervalTransition();
+    // 重要: mission owner 解放は停止より後にしない。
+    // 現在再生中の mission BGM を止めてから owner を外し、unavailable 化を防ぐ。
+    this.game.audio?.stopAndReleaseActiveMissionAudioSet?.();
     this.game.state.score = checkpoint.score;
     this.game.state.crystals = checkpoint.crystals;
     this.game.state.progression.missionTimer = 0;

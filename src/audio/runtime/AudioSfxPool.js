@@ -2,6 +2,7 @@ import {
   clamp,
   DEFAULT_SFX_POLICY,
   isAutoplayError,
+  isPlaybackAbortError,
   isVoiceReusable,
   getAudioRuntime,
   safePause,
@@ -133,6 +134,7 @@ primeSfxVoice(audio, trackId, volumeScale, stereoPan = 0) {
   runtime.trackId = trackId;
   runtime.volumeScale = volumeScale;
   runtime.startedAt = this.getNowMs();
+  runtime.sfxPlaySerial = (runtime.sfxPlaySerial ?? 0) + 1;
 
   safePause(audio);
   safeCurrentTime(audio, 0);
@@ -161,6 +163,13 @@ releaseSfxVoice(audio, { keepReusable = true } = {}) {
     return;
   }
 
+  const trackId = runtime.trackId;
+  const pool = trackId ? this.sfxPools.get(trackId) : null;
+  if (pool?.voices) {
+    const voiceIndex = pool.voices.indexOf(audio);
+    if (voiceIndex >= 0) pool.voices.splice(voiceIndex, 1);
+  }
+  this.disposeSpatialNodes(audio);
   disposeAudio(audio);
 },
 
@@ -204,32 +213,36 @@ playSfx(trackId, options = {}) {
 
 tryPlaySfxVoice(audio, trackId) {
   if (!audio) return false;
-  try {
-    const playResult = audio.play?.();
-    if (playResult?.catch) {
-      playResult.catch((error) => {
-        if (isAutoplayError(error)) {
-          this.releaseSfxVoice(audio, { keepReusable: true });
-          return;
-        }
-        if (error?.name === 'NotSupportedError') {
-          this.handleSfxVoiceError(trackId, audio);
-          return;
-        }
-        this.releaseSfxVoice(audio, { keepReusable: true });
-      });
-    }
-    return true;
-  } catch (error) {
-    if (isAutoplayError(error)) {
+
+  const runtime = getAudioRuntime(audio);
+  const playSerial = runtime?.sfxPlaySerial ?? 0;
+  const isCurrentSfxPlay = () => {
+    const currentRuntime = getAudioRuntime(audio);
+    return currentRuntime?.sfxPlaySerial === playSerial
+      && currentRuntime?.trackId === trackId
+      && this.activeSfx.has(audio);
+  };
+  const handlePlayFailure = (error) => {
+    if (!isCurrentSfxPlay()) return;
+    if (isAutoplayError(error) || isPlaybackAbortError(error)) {
       this.releaseSfxVoice(audio, { keepReusable: true });
-      return false;
+      return;
     }
     if (error?.name === 'NotSupportedError') {
       this.handleSfxVoiceError(trackId, audio);
-      return false;
+      return;
     }
     this.releaseSfxVoice(audio, { keepReusable: true });
+  };
+
+  try {
+    const playResult = audio.play?.();
+    if (playResult?.catch) {
+      playResult.catch(handlePlayFailure);
+    }
+    return true;
+  } catch (error) {
+    handlePlayFailure(error);
     return false;
   }
 },
@@ -276,34 +289,5 @@ setPlayerSfxSuppressed(suppressed) {
     this.clearSfxCooldownsMatching((trackId) => this.isPlayerSfxTrack(trackId));
   }
   return this.playerSfxSuppressed;
-},
-
-tryPlayMedia(audio, trackId, kind) {
-  if (!audio) return false;
-  try {
-    const playResult = audio.play?.();
-    if (playResult?.catch) {
-      playResult.catch((error) => {
-        if (isAutoplayError(error)) {
-          if (kind === 'bgm') this.pendingBgmRequest = { trackId, options: { restart: false } };
-          return;
-        }
-        if (error?.name === 'NotSupportedError') this.markTrackUnavailable(trackId);
-        if (kind === 'bgm' && this.currentBgmAudio === audio && this.unavailableTrackIds.has(trackId)) {
-          this.currentBgmAudio = null;
-          this.currentBgmId = null;
-        }
-      });
-    }
-    return true;
-  } catch (error) {
-    if (!isAutoplayError(error) && error?.name === 'NotSupportedError') {
-      this.markTrackUnavailable(trackId);
-    }
-    if (isAutoplayError(error) && kind === 'bgm') {
-      this.pendingBgmRequest = { trackId, options: { restart: false } };
-    }
-    return false;
-  }
 }
 };
